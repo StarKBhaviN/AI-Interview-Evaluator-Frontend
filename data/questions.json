@@ -1,0 +1,33 @@
+[
+  {
+    "id": "1",
+    "text": "Tell us about your background and experience.",
+    "category": "Behavioral",
+    "difficulty": "Easy",
+    "tags": [
+      "intro",
+      "experience"
+    ],
+    "keywords": [
+      "experience",
+      "background",
+      "skills"
+    ]
+  },
+  {
+    "id": "2",
+    "text": "How would you approach debugging a complex application?",
+    "category": "Technical",
+    "difficulty": "Medium",
+    "tags": [
+      "debugging",
+      "problem-solving"
+    ],
+    "keywords": [
+      "breakpoint",
+      "logs",
+      "reproduce",
+      "isolate"
+    ]
+  }
+]
