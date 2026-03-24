@@ -2,31 +2,60 @@
 import React, { useEffect, useState } from 'react'
 import { Brain, Check } from 'lucide-react'
 
+import { analyzeAudio, AnalysisResponse } from '@/lib/api'
+
 const statuses = [
-  { label: 'Analyzing speech clarity', icon: '🎤' },
+  { label: 'Uploading audio to AI engine', icon: '🎤' },
+  { label: 'Analyzing speech clarity & sentiment', icon: '🎯' },
   { label: 'Evaluating response relevance', icon: '🎯' },
   { label: 'Checking keyword coverage', icon: '🔑' },
-  { label: 'Calculating confidence scores', icon: '📊' },
-  { label: 'Generating feedback report', icon: '📝' },
+  { label: 'Finalizing scores & report', icon: '📊' },
 ]
 
 export default function ProcessingClient() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [done, setDone] = useState(false)
+  const [results, setResults] = useState<AnalysisResponse[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    let idx = 0
-    const interval = setInterval(() => {
-      idx++
-      if (idx < statuses.length) {
-        setCurrentIndex(idx)
-      } else {
-        clearInterval(interval)
+    const processInterviews = async () => {
+      try {
+        const storedPaths = localStorage.getItem('interviewAudioPaths')
+        if (!storedPaths) {
+          setError('No recordings found to process.')
+          return
+        }
+        
+        const paths = JSON.parse(storedPaths) as string[]
+        const allResults: AnalysisResponse[] = []
+
+        // Sequence through the UI and API calls
+        for (let i = 0; i < statuses.length; i++) {
+          setCurrentIndex(i)
+          
+          if (i === 1) { // Analyzing speech clarity & sentiment (First real API call point)
+            for (const path of paths) {
+              const res = await analyzeAudio(path)
+              allResults.push(res)
+            }
+          }
+          
+          // Add some deliberate delay for visual feedback if the API is too fast
+          await new Promise(r => setTimeout(r, 1200))
+        }
+
+        setResults(allResults)
+        localStorage.setItem('interviewResults', JSON.stringify(allResults))
         setDone(true)
         setTimeout(() => { window.location.href = '/completed' }, 1200)
+      } catch (err: any) {
+        console.error('Processing failed:', err)
+        setError(err.message || 'An error occurred during AI analysis.')
       }
-    }, 1500)
-    return () => clearInterval(interval)
+    }
+
+    processInterviews()
   }, [])
 
   return (
@@ -55,6 +84,18 @@ export default function ProcessingClient() {
 
         <h2 className="text-2xl font-bold text-white mb-2">Processing Your Interview</h2>
         <p className="text-white/40 text-sm mb-8">Our AI is analyzing your responses</p>
+
+        {error && (
+          <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+            {error}
+            <button 
+              onClick={() => window.location.href = '/interview'}
+              className="block w-full mt-3 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 transition-all font-semibold"
+            >
+              Back to Interview
+            </button>
+          </div>
+        )}
 
         {/* Steps */}
         <div className="space-y-3 text-left">

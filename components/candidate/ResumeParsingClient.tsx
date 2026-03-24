@@ -1,7 +1,9 @@
 "use client"
 import React, { useState, useEffect } from 'react'
-import { Button } from '../ui/button'
 import { Loader2, FileText, X, Plus, Sparkles } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useAppStore } from '@/store/app.store'
+import { parseResume } from '@/lib/api'
 
 interface Skill {
   id: string
@@ -9,25 +11,38 @@ interface Skill {
 }
 
 export default function ResumeParsingClient() {
+  const router = useRouter()
+  const resumeFile = useAppStore((state) => state.resumeFile)
   const [isProcessing, setIsProcessing] = useState(true)
   const [extractedSkills, setExtractedSkills] = useState<Skill[]>([])
   const [newSkill, setNewSkill] = useState('')
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setTimeout(() => {
-      setExtractedSkills([
-        { id: '1', name: 'React' },
-        { id: '2', name: 'TypeScript' },
-        { id: '3', name: 'Node.js' },
-        { id: '4', name: 'REST APIs' },
-        { id: '5', name: 'Git' },
-        { id: '6', name: 'Agile' },
-        { id: '7', name: 'Problem Solving' },
-        { id: '8', name: 'Communication' },
-      ])
-      setIsProcessing(false)
-    }, 2500)
-  }, [])
+    const performParsing = async () => {
+      if (!resumeFile) {
+        // Fallback or error if no file found (e.g. direct page access)
+        setIsProcessing(false)
+        return
+      }
+
+      try {
+        const result = await parseResume(resumeFile)
+        const skillsWithIds = result.skills.map((s, i) => ({
+          id: i.toString(),
+          name: s
+        }))
+        setExtractedSkills(skillsWithIds)
+      } catch (err) {
+        console.error('Failed to parse resume:', err)
+        setError('Failed to extract skills from resume. You can still add them manually.')
+      } finally {
+        setIsProcessing(false)
+      }
+    }
+
+    performParsing()
+  }, [resumeFile])
 
   const removeSkill = (id: string) => {
     setExtractedSkills((prev) => prev.filter((s) => s.id !== id))
@@ -42,7 +57,7 @@ export default function ResumeParsingClient() {
 
   const handleConfirm = () => {
     localStorage.setItem('extractedSkills', JSON.stringify(extractedSkills))
-    window.location.href = '/instructions'
+    router.push('/instructions')
   }
 
   const candidateName = typeof window !== 'undefined'
@@ -79,6 +94,7 @@ export default function ResumeParsingClient() {
               </div>
               <h2 className="text-xl font-bold text-white mb-2">Analyzing Resume</h2>
               <p className="text-white/40 text-sm">AI is reading and extracting key information…</p>
+              {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
               <div className="mt-6 space-y-2 max-w-xs mx-auto">
                 {['Scanning document…', 'Extracting skills…', 'Identifying experience…'].map((s, i) => (
                   <div key={i} className="h-3 rounded-full animate-shimmer bg-white/[0.04]" style={{ animationDelay: `${i * 200}ms` }} />

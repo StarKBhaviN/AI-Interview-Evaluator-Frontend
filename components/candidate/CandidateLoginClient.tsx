@@ -5,14 +5,18 @@ import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Upload, User, Mail, Briefcase, FileText, Brain } from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
+import { useRouter } from 'next/navigation'
+import { useAppStore } from '@/store/app.store'
 
 export default function CandidateLoginClient() {
+  const router = useRouter()
+  const setResumeFile = useAppStore((state) => state.setResumeFile)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     position: '',
   })
-  const [resumeFile, setResumeFile] = useState<File | null>(null)
+  const [resumeFile, setResumeFileLocal] = useState<File | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -35,7 +39,13 @@ export default function CandidateLoginClient() {
         ...formData,
         resumeFile: resumeFile?.name || null,
       }))
-      window.location.href = '/resume-parsing'
+      
+      // Save the actual File object to the store for parsing in the next screen
+      if (resumeFile) {
+        setResumeFile(resumeFile)
+      }
+      
+      router.push('/resume-parsing')
     } catch (err) {
       console.error('Failed to save candidate', err)
     } finally {
@@ -48,7 +58,7 @@ export default function CandidateLoginClient() {
     setDragOver(false)
     const file = e.dataTransfer.files?.[0]
     if (file && file.type === 'application/pdf') {
-      setResumeFile(file)
+      setResumeFileLocal(file)
     }
   }
 
@@ -137,7 +147,7 @@ export default function CandidateLoginClient() {
                   id="resume"
                   type="file"
                   accept=".pdf"
-                  onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                  onChange={(e) => setResumeFileLocal(e.target.files?.[0] || null)}
                   className="hidden"
                 />
                 <label htmlFor="resume" className="cursor-pointer block">

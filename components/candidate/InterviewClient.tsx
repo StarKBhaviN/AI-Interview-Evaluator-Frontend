@@ -81,6 +81,8 @@ export default function InterviewClient() {
 
   const handleTimeUp = () => { if (isRecording) handleStopRecording(); handleNext() }
   
+  const [audioPaths, setAudioPaths] = useState<string[]>([])
+
   const handleStartRecording = async () => { 
     try {
       await invoke('start_audio_capture')
@@ -93,9 +95,10 @@ export default function InterviewClient() {
 
   const handleStopRecording = async () => { 
     try {
-      await invoke('stop_audio_capture')
+      const path = await invoke<string>('stop_audio_capture')
       setIsRecording(false)
       setShowSubmit(true)
+      setAudioPaths(prev => [...prev, path])
     } catch (err) {
       console.error('Failed to stop recording', err)
     }
@@ -103,7 +106,11 @@ export default function InterviewClient() {
 
   const handleNext = () => {
     setShowSubmit(false)
-    if (isLastQuestion) { window.location.href = '/processing' }
+    if (isLastQuestion) { 
+      // Save paths to localStorage for the processing page
+      localStorage.setItem('interviewAudioPaths', JSON.stringify(audioPaths))
+      window.location.href = '/processing' 
+    }
     else { setCurrentQ(currentQ + 1); setTimeLeft(180); setConfidence(0) }
   }
 
