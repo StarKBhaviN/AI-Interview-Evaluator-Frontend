@@ -1,142 +1,160 @@
 "use client"
-import React from 'react'
-import { Users, CheckCircle, Clock, TrendingUp, ArrowUpRight } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Area, AreaChart } from 'recharts'
-
-const scoreData = [
-  { range: '0-20', count: 3 },
-  { range: '21-40', count: 8 },
-  { range: '41-60', count: 18 },
-  { range: '61-80', count: 42 },
-  { range: '81-100', count: 53 },
-]
-
-const trendData = [
-  { month: 'Jan', interviews: 12, avgScore: 68 },
-  { month: 'Feb', interviews: 18, avgScore: 72 },
-  { month: 'Mar', interviews: 24, avgScore: 71 },
-  { month: 'Apr', interviews: 32, avgScore: 76 },
-  { month: 'May', interviews: 28, avgScore: 79 },
-  { month: 'Jun', interviews: 35, avgScore: 82 },
-]
-
-const stats = [
-  { label: 'Total Candidates', value: '124', change: '+12', icon: Users, color: 'indigo' },
-  { label: 'Average Score', value: '78.5', change: '+3.2', icon: TrendingUp, color: 'purple' },
-  { label: 'Pass Rate', value: '72%', change: '+5%', icon: CheckCircle, color: 'emerald' },
-  { label: "Today's Interviews", value: '8', change: '+2', icon: Clock, color: 'cyan' },
-]
-
-const colorMap: Record<string, { bg: string; icon: string; border: string }> = {
-  indigo: { bg: 'from-indigo-500/15 to-indigo-500/5', icon: 'bg-indigo-500/15 text-indigo-400', border: 'border-indigo-500/10' },
-  purple: { bg: 'from-purple-500/15 to-purple-500/5', icon: 'bg-purple-500/15 text-purple-400', border: 'border-purple-500/10' },
-  emerald: { bg: 'from-emerald-500/15 to-emerald-500/5', icon: 'bg-emerald-500/15 text-emerald-400', border: 'border-emerald-500/10' },
-  cyan: { bg: 'from-cyan-500/15 to-cyan-500/5', icon: 'bg-cyan-500/15 text-cyan-400', border: 'border-cyan-500/10' },
-}
+import React, { useState } from 'react'
+import { 
+  Shield, 
+  Users, 
+  Briefcase, 
+  TrendingUp, 
+  Plus, 
+  Search, 
+  MoreVertical, 
+  CheckCircle2, 
+  XCircle,
+  BarChart3,
+  LogOut,
+  ChevronRight,
+  ChevronDown
+} from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 export default function AdminDashboardClient() {
+  const router = useRouter()
+  const [activeTab, setActiveTab] = useState<'overview' | 'clients' | 'candidates'>('overview')
+
+  const stats = [
+    { label: 'Total Clients', value: '24', icon: Briefcase, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    { label: 'Total Candidates', value: '1,428', icon: Users, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
+    { label: 'Interviews Completed', value: '3,842', icon: CheckCircle2, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+    { label: 'Platform Growth', value: '+12%', icon: TrendingUp, color: 'text-rose-400', bg: 'bg-rose-500/10' },
+  ]
+
+  const handleLogout = () => {
+    router.push('/')
+  }
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-        <p className="text-white/30 text-sm mt-1">Monitor interview statistics and candidate progress</p>
-      </div>
-
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, i) => {
-          const Icon = stat.icon
-          const c = colorMap[stat.color]
-          return (
-            <div
-              key={i}
-              className={`glass rounded-2xl p-5 bg-gradient-to-br ${c.bg} border ${c.border} card-hover`}
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className={`w-10 h-10 rounded-xl ${c.icon} flex items-center justify-center`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <span className="flex items-center gap-0.5 text-emerald-400 text-xs font-semibold">
-                  <ArrowUpRight className="w-3 h-3" />
-                  {stat.change}
-                </span>
-              </div>
-              <p className="text-2xl font-bold text-white mb-0.5">{stat.value}</p>
-              <p className="text-xs text-white/30">{stat.label}</p>
+    <div className="min-h-screen bg-[#020205] text-white p-6 md:p-10 font-sans">
+      <div className="max-w-7xl mx-auto space-y-10">
+        
+        {/* Navbar */}
+        <div className="flex items-center justify-between glass p-4 px-8 rounded-3xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-2xl">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-[1.25rem] bg-gradient-to-br from-rose-500 to-orange-600 flex items-center justify-center shadow-2xl shadow-rose-500/20">
+              <Shield className="w-6 h-6 text-white" />
             </div>
-          )
-        })}
-      </div>
-
-      {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Score distribution */}
-        <div className="glass rounded-2xl p-6 lg:col-span-2">
-          <h2 className="text-base font-semibold text-white mb-4">Score Distribution</h2>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={scoreData} barSize={40}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-              <XAxis dataKey="range" stroke="rgba(255,255,255,0.2)" fontSize={12} />
-              <YAxis stroke="rgba(255,255,255,0.2)" fontSize={12} />
-              <Tooltip
-                contentStyle={{ background: '#1a1a3e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }}
-              />
-              <Bar dataKey="count" fill="url(#barGradient)" radius={[6, 6, 0, 0]} />
-              <defs>
-                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#818cf8" />
-                  <stop offset="100%" stopColor="#6366f1" />
-                </linearGradient>
-              </defs>
-            </BarChart>
-          </ResponsiveContainer>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">Admin Console</h1>
+              <p className="text-rose-400 text-[10px] uppercase tracking-[0.2em] font-black">Super Admin</p>
+            </div>
+          </div>
+          <button 
+            onClick={handleLogout}
+            className="p-2.5 rounded-xl hover:bg-white/[0.05] text-white/40 hover:text-red-400 transition-all font-medium flex items-center gap-2 text-sm"
+          >
+            <LogOut className="w-4 h-4" />
+            Logout
+          </button>
         </div>
 
-        {/* Recent interviews */}
-        <div className="glass rounded-2xl p-6">
-          <h2 className="text-base font-semibold text-white mb-4">Recent Interviews</h2>
-          <div className="space-y-3">
-            {['Arjun Patel', 'Priya Sharma', 'Rahul Mehta', 'Sneha Iyer'].map((name, i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center text-white/50 text-xs font-bold">
-                    {name[0]}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-white/70">{name}</p>
-                    <p className="text-[11px] text-white/25">Frontend Developer</p>
-                  </div>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {stats.map((stat, i) => (
+            <div key={i} className="glass p-6 rounded-3xl border border-white/[0.06] bg-white/[0.01]">
+              <div className="flex items-center justify-between mb-4">
+                <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center`}>
+                  <stat.icon className={`w-5 h-5 ${stat.color}`} />
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-white/60">{80 + i * 3}/100</p>
-                  <p className="text-[11px] text-white/20">{i + 1}h ago</p>
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/[0.03] border border-white/[0.06]">
+                  <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-[8px] font-black text-white/40 uppercase tracking-widest">Live</span>
                 </div>
               </div>
-            ))}
-          </div>
+              <p className="text-white/40 text-xs font-medium mb-1">{stat.label}</p>
+              <p className="text-3xl font-black text-white tabular-nums">{stat.value}</p>
+            </div>
+          ))}
         </div>
-      </div>
 
-      {/* Trend chart */}
-      <div className="glass rounded-2xl p-6">
-        <h2 className="text-base font-semibold text-white mb-4">Interview Trends</h2>
-        <ResponsiveContainer width="100%" height={250}>
-          <AreaChart data={trendData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-            <XAxis dataKey="month" stroke="rgba(255,255,255,0.2)" fontSize={12} />
-            <YAxis stroke="rgba(255,255,255,0.2)" fontSize={12} />
-            <Tooltip
-              contentStyle={{ background: '#1a1a3e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }}
-            />
-            <defs>
-              <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <Area type="monotone" dataKey="avgScore" stroke="#6366f1" fill="url(#areaGradient)" strokeWidth={2} />
-          </AreaChart>
-        </ResponsiveContainer>
+        {/* Dynamic Tabs */}
+        <div className="flex items-center gap-1 p-1 bg-white/[0.02] border border-white/[0.06] rounded-2xl w-fit">
+          {(['overview', 'clients', 'candidates'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`p-2 px-6 rounded-xl text-sm font-bold transition-all ${
+                activeTab === tab 
+                  ? 'bg-white text-black shadow-lg' 
+                  : 'text-white/40 hover:text-white hover:bg-white/[0.04]'
+              }`}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        <div className="glass rounded-[2.5rem] border border-white/[0.06] bg-white/[0.01] overflow-hidden min-h-[400px]">
+          {activeTab === 'overview' && (
+            <div className="p-10 flex flex-col items-center justify-center h-full text-center space-y-6">
+              <div className="w-20 h-20 rounded-[2rem] bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                <BarChart3 className="w-10 h-10 text-indigo-400" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-bold">Analytics Engine Active</h3>
+                <p className="text-white/30 max-w-sm mx-auto">
+                  Monitor all platform metrics, hiring trends, and candidate success rates from this central hub.
+                </p>
+              </div>
+              <button className="flex items-center gap-2 p-3 px-8 rounded-2xl bg-white text-black font-bold text-sm hover:scale-105 transition-all">
+                Export Full Report
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {activeTab !== 'overview' && (
+            <div className="p-0">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-white/[0.06] bg-white/[0.02]">
+                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-white/30">{activeTab === 'clients' ? 'Company Name' : 'Candidate Name'}</th>
+                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-white/30 text-center">Status</th>
+                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-white/30 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/[0.04]">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <tr key={i} className="group hover:bg-white/[0.02] transition-colors">
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-10 h-10 rounded-xl ${activeTab === 'clients' ? 'bg-emerald-500/10' : 'bg-indigo-500/10'} flex items-center justify-center font-bold text-xs`}>
+                            {activeTab === 'clients' ? 'C' : 'U'}{i}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-white group-hover:text-rose-400 transition-colors">
+                              {activeTab === 'clients' ? `TechCorp Solutions ${i}` : `Alex Johnson ${i}`}
+                            </h4>
+                            <p className="text-xs text-white/20">Active since March 2026</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 text-center">
+                         <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider">
+                           Active
+                         </span>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <button className="p-2 rounded-xl hover:bg-white/[0.05] text-white/20 hover:text-white transition-all">
+                          <MoreVertical className="w-5 h-5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

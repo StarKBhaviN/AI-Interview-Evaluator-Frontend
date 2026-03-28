@@ -1,5 +1,6 @@
 "use client"
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -11,7 +12,16 @@ import { useAppStore } from '@/store/app.store'
 export default function CandidateLoginClient() {
   const router = useRouter()
   const setResumeFile = useAppStore((state) => state.setResumeFile)
+  
+  useEffect(() => {
+    const stored = localStorage.getItem('candidateData')
+    if (stored) {
+      router.push('/dashboard')
+    }
+  }, [router])
+
   const [formData, setFormData] = useState({
+
     name: '',
     email: '',
     position: '',

@@ -28,6 +28,13 @@ export default function ProcessingClient() {
         }
         
         const paths = JSON.parse(storedPaths) as string[]
+        const storedQuestions = localStorage.getItem('interviewQuestions')
+        const questions = storedQuestions ? JSON.parse(storedQuestions) as any[] : []
+        
+        const storedSkills = localStorage.getItem('extractedSkills')
+        const skillsObj = storedSkills ? JSON.parse(storedSkills) as {name: string}[] : []
+        const skills = skillsObj.map(s => s.name)
+
         const allResults: AnalysisResponse[] = []
 
         // Sequence through the UI and API calls
@@ -35,11 +42,14 @@ export default function ProcessingClient() {
           setCurrentIndex(i)
           
           if (i === 1) { // Analyzing speech clarity & sentiment (First real API call point)
-            for (const path of paths) {
-              const res = await analyzeAudio(path)
+            for (let j = 0; j < paths.length; j++) {
+              const path = paths[j]
+              const questionText = questions[j]?.text || ""
+              const res = await analyzeAudio(path, questionText, skills)
               allResults.push(res)
             }
           }
+
           
           // Add some deliberate delay for visual feedback if the API is too fast
           await new Promise(r => setTimeout(r, 1200))
@@ -47,13 +57,44 @@ export default function ProcessingClient() {
 
         setResults(allResults)
         localStorage.setItem('interviewResults', JSON.stringify(allResults))
+        
+        // Save to interview history
+        const candidateData = JSON.parse(localStorage.getItem('candidateData') || '{}')
+        const avgRel = allResults.reduce((acc, r) => acc + r.relevance_score, 0) / allResults.length
+        const avgConf = allResults.reduce((acc, r) => acc + r.confidence_score, 0) / allResults.length
+        const overall = Math.round((avgRel * 0.4 + 0.75 * 0.3 + avgConf * 0.3) * 100)
+
+        // Combine results with audio paths and question text for history
+        const detailedResults = allResults.map((res, idx) => ({
+          ...res,
+          audioPath: paths[idx],
+          questionText: questions[idx]?.text || `Question ${idx + 1}`
+        }))
+
+
+        const historyItem = {
+          id: Date.now().toString(),
+          date: new Date().toISOString(),
+          position: candidateData.position || 'General',
+          score: overall,
+          questionsCount: allResults.length,
+          details: detailedResults
+        }
+
+
+        const existingHistory = JSON.parse(localStorage.getItem('interviewHistory') || '[]')
+        localStorage.setItem('interviewHistory', JSON.stringify([historyItem, ...existingHistory]))
+
         setDone(true)
+
         setTimeout(() => { window.location.href = '/completed' }, 1200)
       } catch (err: any) {
         console.error('Processing failed:', err)
-        setError(err.message || 'An error occurred during AI analysis.')
+        const msg = err.message || 'An error occurred during AI analysis.'
+        setError(`${msg}. Please ensure the AI backend (Python) is running.`)
       }
     }
+
 
     processInterviews()
   }, [])

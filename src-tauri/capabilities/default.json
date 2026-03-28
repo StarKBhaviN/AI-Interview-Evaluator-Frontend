@@ -7,8 +7,17 @@
   ],
   "permissions": [
     "core:default",
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [{ "path": "$APPDATA/**" }]
+    },
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [{ "path": "$APPDATA/**" }]
+    },
     "fs:default",
     "http:default",
+
     "shell:default",
     "log:default",
     "core:path:default"

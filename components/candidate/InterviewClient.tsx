@@ -70,14 +70,23 @@ export default function InterviewClient() {
   useEffect(() => {
     if (isRecording) {
       const interval = setInterval(() => {
-        setWaveform(Array(30).fill(0).map(() => Math.random() * 100))
-        setConfidence((prev) => Math.min(100, prev + Math.random() * 5))
+        // More dynamic waveform
+        setWaveform(Array(30).fill(0).map(() => 20 + Math.random() * 80))
+        
+        // Realistic confidence fluctuation (random walk between 65% and 95%)
+        setConfidence((prev) => {
+          if (prev === 0) return 75 + Math.random() * 10;
+          const change = (Math.random() - 0.45) * 3; // Slight upward bias
+          const next = prev + change;
+          return Math.min(95, Math.max(65, next));
+        })
       }, 100)
       return () => clearInterval(interval)
     } else {
       setWaveform(Array(30).fill(0))
     }
   }, [isRecording])
+
 
   const handleTimeUp = () => { if (isRecording) handleStopRecording(); handleNext() }
   
@@ -107,12 +116,14 @@ export default function InterviewClient() {
   const handleNext = () => {
     setShowSubmit(false)
     if (isLastQuestion) { 
-      // Save paths to localStorage for the processing page
+      // Save paths and questions to localStorage for the processing page
       localStorage.setItem('interviewAudioPaths', JSON.stringify(audioPaths))
+      localStorage.setItem('interviewQuestions', JSON.stringify(questions))
       window.location.href = '/processing' 
     }
     else { setCurrentQ(currentQ + 1); setTimeLeft(180); setConfidence(0) }
   }
+
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)

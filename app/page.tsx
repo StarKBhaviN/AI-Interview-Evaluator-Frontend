@@ -1,141 +1,111 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { Mic, Camera, Wifi, Brain } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
-
-const checkItems = [
-  { icon: Brain, label: "Loading AI Models" },
-  { icon: Mic, label: "Detecting Microphone" },
-  { icon: Camera, label: "Detecting Camera" },
-  { icon: Wifi, label: "Checking Connection" },
-];
+"use client"
+import React, { useState, useEffect } from 'react'
+import { Brain, User, Briefcase, Shield, ChevronRight, Sparkles, Zap, ShieldCheck } from 'lucide-react'
 
 export default function Home() {
-  const [progress, setProgress] = useState(0);
-  const [currentCheck, setCurrentCheck] = useState(0);
-  const [ready, setReady] = useState(false);
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setReady(true);
-          return 100;
-        }
-        return prev + 2;
-      });
-    }, 60);
+  if (!mounted) return null
 
-    const checkInterval = setInterval(() => {
-      setCurrentCheck((prev) =>
-        prev < checkItems.length - 1 ? prev + 1 : prev
-      );
-    }, 800);
-
-    return () => {
-      clearInterval(interval);
-      clearInterval(checkInterval);
-    };
-  }, []);
-
-  const handleStart = () => {
-    window.location.href = "/system-check";
-  };
+  const roles = [
+    {
+      id: 'candidate',
+      title: 'For Candidates',
+      description: 'Practice interviews, track your progress, and apply for formal roles.',
+      icon: User,
+      color: 'from-indigo-500 to-purple-600',
+      shadow: 'shadow-indigo-500/20',
+      href: '/candidate-login',
+      featureIcon: Sparkles,
+      featureText: 'AI Feedback'
+    },
+    {
+      id: 'client',
+      title: 'For Clients',
+      description: 'Create interview slots, generate meeting codes, and evaluate talent.',
+      icon: Briefcase,
+      color: 'from-emerald-500 to-teal-600',
+      shadow: 'shadow-emerald-500/20',
+      href: '/client/dashboard',
+      featureIcon: Zap,
+      featureText: 'Quick Hiring'
+    },
+    {
+      id: 'admin',
+      title: 'For Admins',
+      description: 'Monitor platform activity, manage users, and oversee all operations.',
+      icon: Shield,
+      color: 'from-rose-500 to-orange-600',
+      shadow: 'shadow-rose-500/20',
+      href: '/admin/dashboard',
+      featureIcon: ShieldCheck,
+      featureText: 'Full Control'
+    }
+  ]
 
   return (
-    <div className="min-h-screen bg-[var(--background)] bg-mesh flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl animate-float" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-float animate-delay-500" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-3xl" />
-
-      <div className="relative z-10 flex flex-col items-center max-w-md w-full animate-fade-in-up">
-        {/* Logo */}
-        <div className="relative mb-8">
-          <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-indigo-500 via-purple-500 to-cyan-500 flex items-center justify-center shadow-2xl shadow-indigo-500/30 animate-pulse-glow">
-            <Brain className="w-12 h-12 text-white" />
+    <div className="min-h-screen bg-[var(--background)] bg-mesh flex flex-col items-center justify-center p-6 relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/10 rounded-full blur-[120px] animate-pulse" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/10 rounded-full blur-[120px] animate-pulse delay-700" />
+      
+      <div className="relative z-10 max-w-5xl w-full text-center space-y-12">
+        {/* Header */}
+        <div className="space-y-4 animate-fade-in-up">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold uppercase tracking-widest mb-4">
+            Next-Gen Assessment
           </div>
-          {/* Orbiting dots */}
-          <div className="absolute inset-0 animate-spin-slow">
-            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-indigo-400 shadow-lg shadow-indigo-400/50" />
-          </div>
-          <div className="absolute inset-0 animate-spin-slow" style={{ animationDirection: "reverse", animationDuration: "12s" }}>
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-lg shadow-cyan-400/50" />
-          </div>
-        </div>
-
-        {/* Title */}
-        <h1 className="text-3xl font-bold text-white mb-2 tracking-tight text-center">
-          AI Interview Evaluator
-        </h1>
-        <p className="text-white/40 text-sm mb-10 text-center">
-          Intelligent Assessment Platform
-        </p>
-
-        {/* Progress card */}
-        <div className="glass rounded-2xl p-6 w-full mb-6">
-          <p className="text-sm font-medium text-white/60 mb-4 text-center">
-            {ready ? "System Ready" : "Initializing AI Engine…"}
+          <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight">
+            Select Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">Portal</span>
+          </h1>
+          <p className="text-white/40 text-lg max-w-2xl mx-auto font-medium">
+            Welcome to the AI Interview Evaluator. Choose the path that matches your needs to get started.
           </p>
-
-          <Progress value={progress} variant="gradient" size="md" className="mb-6" />
-
-          {/* Check items */}
-          <div className="space-y-3">
-            {checkItems.map((item, index) => {
-              const Icon = item.icon;
-              const isDone = index < currentCheck || ready;
-              const isCurrent = index === currentCheck && !ready;
-              return (
-                <div
-                  key={index}
-                  className={`flex items-center gap-3 text-sm transition-all duration-300 ${
-                    isDone
-                      ? "text-emerald-400"
-                      : isCurrent
-                      ? "text-white"
-                      : "text-white/20"
-                  }`}
-                >
-                  <div
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 ${
-                      isDone
-                        ? "bg-emerald-500/15"
-                        : isCurrent
-                        ? "bg-indigo-500/15"
-                        : "bg-white/[0.03]"
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <span className="font-medium">{item.label}</span>
-                  {isDone && (
-                    <span className="ml-auto text-xs text-emerald-400/70">✓</span>
-                  )}
-                  {isCurrent && (
-                    <div className="ml-auto w-4 h-4 border-2 border-indigo-400/50 border-t-indigo-400 rounded-full animate-spin" />
-                  )}
-                </div>
-              );
-            })}
-          </div>
         </div>
 
-        {/* Start button */}
-        {ready && (
-          <button
-            onClick={handleStart}
-            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold text-sm shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 animate-fade-in-up"
-          >
-            Begin System Check
-          </button>
-        )}
+        {/* Role Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in-up delay-200">
+          {roles.map((role) => (
+            <button
+              key={role.id}
+              onClick={() => window.location.href = role.href}
+              className="group relative glass p-8 rounded-[2.5rem] border border-white/[0.06] hover:border-white/[0.12] transition-all duration-500 text-left flex flex-col h-full hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${role.color} flex items-center justify-center mb-6 shadow-2xl ${role.shadow} group-hover:scale-110 transition-transform duration-500`}>
+                <role.icon className="w-8 h-8 text-white" />
+              </div>
+              
+              <div className="space-y-3 flex-1">
+                <h3 className="text-2xl font-bold text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-white/60 transition-all">
+                  {role.title}
+                </h3>
+                <p className="text-white/40 text-sm leading-relaxed">
+                  {role.description}
+                </p>
+              </div>
 
-        {/* Footer */}
-        <p className="text-white/20 text-xs mt-8">v1.0.0 — Powered by AI</p>
+              <div className="mt-8 pt-6 border-t border-white/[0.04] flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/20 group-hover:text-white/40 transition-colors">
+                  <role.featureIcon className="w-3 h-3" />
+                  {role.featureText}
+                </div>
+                <div className="w-10 h-10 rounded-full bg-white/[0.04] group-hover:bg-white text-white/20 group-hover:text-black flex items-center justify-center transition-all duration-500">
+                  <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Brand */}
+        <div className="flex items-center justify-center gap-4 text-white/20 animate-fade-in-up delay-400">
+          <div className="h-[1px] w-12 bg-white/10" />
+          <Brain className="w-6 h-6" />
+          <div className="h-[1px] w-12 bg-white/10" />
+        </div>
       </div>
     </div>
-  );
+  )
 }
+

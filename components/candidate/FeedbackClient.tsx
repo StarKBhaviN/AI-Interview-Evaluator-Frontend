@@ -1,25 +1,87 @@
 "use client"
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Progress } from '../ui/progress'
-import { TrendingUp, MessageSquare, Code, Target, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react'
+import { TrendingUp, MessageSquare, Code, Target, CheckCircle, AlertCircle, ArrowRight, BookOpen } from 'lucide-react'
+
+interface AnalysisResponse {
+  transcript: string
+  relevance_score: number
+
+  confidence_score: number
+  sentiment: string
+  keywords_found: string[]
+  is_technical: boolean
+}
+
+interface Question {
+  id: string
+  text: string
+}
 
 export default function FeedbackClient() {
+  const [results, setResults] = useState<AnalysisResponse[]>([])
+  const [questions, setQuestions] = useState<Question[]>([])
+
+  useEffect(() => {
+    const storedResults = localStorage.getItem('interviewResults')
+    const storedQuestions = localStorage.getItem('interviewQuestions')
+    
+    if (storedResults) setResults(JSON.parse(storedResults))
+    if (storedQuestions) setQuestions(JSON.parse(storedQuestions))
+  }, [])
+
+  // Calculate dynamic scores
+  const avgRelevance = results.length > 0 
+    ? (results.reduce((acc, r) => acc + r.relevance_score, 0) / results.length) * 100 
+    : 0
+  const avgConfidence = results.length > 0 
+    ? (results.reduce((acc, r) => acc + r.confidence_score, 0) / results.length) * 100 
+    : 0
+
+  // Only count technical questions for technical score
+  const techResults = results.filter(r => r.is_technical)
+  const avgTech = techResults.length > 0
+    ? (techResults.reduce((acc, r) => acc + r.relevance_score, 0) / techResults.length) * 100
+    : 75 // Neutral default if no technical questions were asked
+
+  const overallScore = Math.round(
+    (avgRelevance * 0.4) + 
+    (avgTech * 0.3) + 
+    (avgConfidence * 0.3)
+  )
+
+  useEffect(() => {
+    if (results.length > 0) {
+      console.log('--- Score Calculation Debug ---')
+      console.log('Average Relevance (40% weight):', avgRelevance.toFixed(2) + '%')
+      console.log('Average Technical (30% weight):', avgTech.toFixed(2) + '%')
+      console.log('Average Communication/Conf (30% weight):', avgConfidence.toFixed(2) + '%')
+      console.log('Overall Score calculation: (Rel*0.4) + (Tech*0.3) + (Conf*0.3)')
+      console.log('Final Overall Score:', overallScore)
+      console.log('Raw Results:', results)
+      console.log('------------------------------')
+    }
+  }, [results, avgRelevance, avgTech, avgConfidence, overallScore])
+
   const feedback = {
-    overallScore: 82,
-    communicationScore: 85,
-    technicalScore: 78,
-    confidenceScore: 82,
+    overallScore: overallScore,
+    communicationScore: Math.round(avgConfidence),
+    technicalScore: Math.round(avgTech),
+    confidenceScore: Math.round(avgConfidence),
+
+
+
     strengths: [
-      'Clear and articulate communication',
-      'Strong problem-solving approach',
-      'Good understanding of fundamentals',
-      'Positive attitude and enthusiasm',
+      'Good use of technical keywords',
+      avgConfidence > 75 ? 'Strong and steady confidence levels' : 'Consistent response attempts',
+      'Relevant answers matching question context',
+      'Professional sentiment detected in speech',
     ],
     improvements: [
-      'Provide more detailed examples',
-      'Improve code optimization knowledge',
-      'Practice explaining complex concepts',
-      'Enhance follow-up questions',
+      'Try to minimize filler words like "um" or "uh"',
+      'Elaborate more on specific project examples',
+      'Ensure all key requirements are addressed',
+      'Maintain a consistent pace of speaking',
     ],
   }
 
@@ -52,7 +114,7 @@ export default function FeedbackClient() {
       <div className="max-w-4xl mx-auto py-8 relative z-10">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">Your Interview Feedback</h1>
-          <p className="text-white/40">Here&apos;s how you performed in the interview</p>
+          <p className="text-white/40">Here&apos;s how you performed according to the AI analysis</p>
         </div>
 
         {/* Overall score */}
@@ -93,9 +155,45 @@ export default function FeedbackClient() {
           </div>
         </div>
 
+        {/* Response Review - Transcripts */}
+        <div className="glass rounded-2xl p-6 mb-6 animate-fade-in-up animate-delay-200">
+          <div className="flex items-center gap-2 mb-5">
+            <BookOpen className="w-5 h-5 text-cyan-400" />
+            <h2 className="text-lg font-bold text-white">Detailed Transcript Review</h2>
+          </div>
+          <div className="space-y-4">
+            {results.map((res, i) => (
+              <div key={i} className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold text-indigo-400">Question {i + 1}</h4>
+                  <div className="flex gap-3 text-[10px] uppercase tracking-wider font-bold">
+                    <span className="text-emerald-400">Relevance: {Math.round(res.relevance_score * 100)}%</span>
+                    <span className="text-cyan-400">Confidence: {Math.round(res.confidence_score * 100)}%</span>
+                  </div>
+                </div>
+                <p className="text-xs text-white/40 mb-3 italic">"{questions[i]?.text || 'General Question'}"</p>
+                <div className="p-3 rounded-lg bg-black/20 border border-white/[0.04]">
+                  <p className="text-sm text-white/70 leading-relaxed font-mono">
+                    {res.transcript || "No transcript available for this response."}
+                  </p>
+                </div>
+                {res.keywords_found.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {res.keywords_found.map(kw => (
+                      <span key={kw} className="text-[10px] px-2 py-0.5 rounded bg-white/[0.05] text-white/40 border border-white/[0.05]">
+                        {kw}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Strengths & Improvements */}
         <div className="grid md:grid-cols-2 gap-6 mb-6">
-          <div className="glass rounded-2xl p-6 animate-fade-in-up animate-delay-200">
+          <div className="glass rounded-2xl p-6 animate-fade-in-up animate-delay-300">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center">
                 <CheckCircle className="w-4 h-4 text-emerald-400" />
@@ -112,7 +210,7 @@ export default function FeedbackClient() {
             </ul>
           </div>
 
-          <div className="glass rounded-2xl p-6 animate-fade-in-up animate-delay-300">
+          <div className="glass rounded-2xl p-6 animate-fade-in-up animate-delay-400">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
                 <AlertCircle className="w-4 h-4 text-amber-400" />
@@ -131,7 +229,7 @@ export default function FeedbackClient() {
         </div>
 
         {/* Note & Continue */}
-        <div className="glass rounded-2xl p-6 animate-fade-in-up animate-delay-400">
+        <div className="glass rounded-2xl p-6 animate-fade-in-up animate-delay-500">
           <div className="p-4 rounded-xl bg-indigo-500/8 border border-indigo-500/15 mb-4">
             <p className="text-sm text-white/40">
               <strong className="text-indigo-300">Note:</strong> This is preliminary feedback generated by our AI system.
@@ -150,3 +248,4 @@ export default function FeedbackClient() {
     </div>
   )
 }
+
