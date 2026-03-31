@@ -28,6 +28,7 @@ interface InterviewHistoryItem {
   position: string
   score: number
   questionsCount: number
+  warnings?: {time: string, flags: string[]}[]
   details: any[]
 }
 
@@ -57,7 +58,7 @@ export default function DashboardClient() {
     if (storedCandidate) {
       setCandidate(JSON.parse(storedCandidate))
     } else {
-      router.push('/candidate-login')
+      router.push('/login')
     }
 
     if (storedHistory) {
@@ -79,11 +80,20 @@ export default function DashboardClient() {
   }
 
   const handleApply = (roleTitle: string) => {
-    // Pre-fill application info
     if (candidate) {
       const updatedCandidate = { ...candidate, position: roleTitle }
+      
+      // 1. Update active session
       localStorage.setItem('candidateData', JSON.stringify(updatedCandidate))
       setCandidate(updatedCandidate)
+
+      // 2. Update global registered list
+      const registered = localStorage.getItem('registeredCandidates')
+      if (registered) {
+        const users = JSON.parse(registered)
+        const updatedUsers = users.map((u: any) => u.email === candidate.email ? updatedCandidate : u)
+        localStorage.setItem('registeredCandidates', JSON.stringify(updatedUsers))
+      }
     }
     router.push('/waiting-room')
   }
@@ -150,8 +160,17 @@ export default function DashboardClient() {
                 {candidate.name}
               </h2>
               <p className="text-white/40 max-w-md text-balance leading-relaxed">
-                You are currently tracking for <span className="text-white/70 font-semibold">{candidate.position}</span>. 
-                Improve your readiness with a simulated session or explore formal roles below.
+                {candidate.position && candidate.position !== 'Unspecified' ? (
+                  <>
+                    You are currently tracking for <span className="text-white/70 font-semibold">{candidate.position}</span>. 
+                    Improve your readiness with a simulated session or explore formal roles below.
+                  </>
+                ) : (
+                  <>
+                    You haven&apos;t selected a position yet. Choose an opportunity from the 
+                    <span className="text-white/70 font-semibold"> Marketplace</span> below or start a practice session.
+                  </>
+                )}
               </p>
               <div className="pt-4 flex flex-wrap gap-4">
                 <button 
@@ -424,6 +443,42 @@ export default function DashboardClient() {
                   </div>
                 ))}
               </div>
+
+              {/* Proctoring Timeline (New Section) */}
+              {selectedHistory.warnings && selectedHistory.warnings.length > 0 && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between pl-1">
+                    <h4 className="text-sm font-bold uppercase tracking-widest text-white/30">Proctoring Incident Report</h4>
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-red-400 uppercase tracking-widest">
+                      {selectedHistory.warnings.length} Incidents
+                    </span>
+                  </div>
+                  <div className="glass rounded-[2rem] border border-white/[0.04] overflow-hidden">
+                    <div className="divide-y divide-white/[0.04]">
+                      {selectedHistory.warnings.map((log: any, idx: number) => (
+                        <div key={idx} className="p-4 px-6 flex items-start gap-6 hover:bg-white/[0.02] transition-colors group">
+                          <div className="flex flex-col items-center gap-2 pt-1">
+                             <div className="text-[10px] font-black font-mono text-indigo-400/60 bg-indigo-500/5 px-2 py-1 rounded border border-indigo-500/10">
+                                {log.time}
+                             </div>
+                             <div className="w-[1px] h-full bg-white/5 group-last:hidden" />
+                          </div>
+                          <div className="flex-1 space-y-1">
+                             <div className="flex flex-wrap gap-2">
+                                {log.flags.map((flag: string, fIdx: number) => (
+                                  <span key={fIdx} className="text-[9px] font-black uppercase tracking-tight text-white/40 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">
+                                    {flag}
+                                  </span>
+                                ))}
+                             </div>
+                             <p className="text-xs text-white/20 font-medium">Flagged by AI Proctoring Assistant</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Questions Drilldown */}
               <div className="space-y-6">

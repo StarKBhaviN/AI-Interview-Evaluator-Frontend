@@ -35,6 +35,9 @@ export default function ProcessingClient() {
         const skillsObj = storedSkills ? JSON.parse(storedSkills) as {name: string}[] : []
         const skills = skillsObj.map(s => s.name)
 
+        const storedWarnings = localStorage.getItem('interviewWarnings')
+        const warningLogs = storedWarnings ? JSON.parse(storedWarnings) : []
+
         const allResults: AnalysisResponse[] = []
 
         // Sequence through the UI and API calls
@@ -78,6 +81,7 @@ export default function ProcessingClient() {
           position: candidateData.position || 'General',
           score: overall,
           questionsCount: allResults.length,
+          warnings: warningLogs,
           details: detailedResults
         }
 

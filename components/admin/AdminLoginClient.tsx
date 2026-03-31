@@ -8,10 +8,17 @@ export default function AdminLoginClient() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
+  const [error, setError] = useState('')
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    localStorage.setItem('adminLoggedIn', 'true')
-    window.location.href = '/admin/dashboard'
+    setError('')
+    if (email === 'admin@eval.ai' && password === 'admin123') {
+      localStorage.setItem('adminLoggedIn', 'true')
+      window.location.href = '/admin/dashboard'
+    } else {
+      setError('Invalid admin credentials.')
+    }
   }
 
   return (
@@ -48,6 +55,11 @@ export default function AdminLoginClient() {
           <p className="text-white/30 text-sm mb-8">Access the admin dashboard</p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold text-center">
+                {error}
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label className="text-white/50 text-xs font-medium flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5" /> Email

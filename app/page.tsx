@@ -16,7 +16,7 @@ export default function Home() {
       icon: User,
       color: 'from-indigo-500 to-purple-600',
       shadow: 'shadow-indigo-500/20',
-      href: '/candidate-login',
+      href: '/login',
       featureIcon: Sparkles,
       featureText: 'AI Feedback'
     },
@@ -27,7 +27,7 @@ export default function Home() {
       icon: Briefcase,
       color: 'from-emerald-500 to-teal-600',
       shadow: 'shadow-emerald-500/20',
-      href: '/client/dashboard',
+      href: '/client/login',
       featureIcon: Zap,
       featureText: 'Quick Hiring'
     },
