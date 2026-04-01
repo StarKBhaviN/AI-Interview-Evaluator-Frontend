@@ -3,15 +3,7 @@ import React, { useEffect, useState } from 'react'
 import { Progress } from '../ui/progress'
 import { TrendingUp, MessageSquare, Code, Target, CheckCircle, AlertCircle, ArrowRight, BookOpen } from 'lucide-react'
 
-interface AnalysisResponse {
-  transcript: string
-  relevance_score: number
-
-  confidence_score: number
-  sentiment: string
-  keywords_found: string[]
-  is_technical: boolean
-}
+import { AnalysisResponse, InterviewReport } from '@/lib/api'
 
 interface Question {
   id: string
@@ -21,68 +13,25 @@ interface Question {
 export default function FeedbackClient() {
   const [results, setResults] = useState<AnalysisResponse[]>([])
   const [questions, setQuestions] = useState<Question[]>([])
+  const [report, setReport] = useState<InterviewReport | null>(null)
 
   useEffect(() => {
     const storedResults = localStorage.getItem('interviewResults')
     const storedQuestions = localStorage.getItem('interviewQuestions')
+    const storedReport = localStorage.getItem('interviewReport')
     
     if (storedResults) setResults(JSON.parse(storedResults))
     if (storedQuestions) setQuestions(JSON.parse(storedQuestions))
+    if (storedReport) setReport(JSON.parse(storedReport))
   }, [])
 
-  // Calculate dynamic scores
-  const avgRelevance = results.length > 0 
-    ? (results.reduce((acc, r) => acc + r.relevance_score, 0) / results.length) * 100 
-    : 0
-  const avgConfidence = results.length > 0 
-    ? (results.reduce((acc, r) => acc + r.confidence_score, 0) / results.length) * 100 
-    : 0
-
-  // Only count technical questions for technical score
-  const techResults = results.filter(r => r.is_technical)
-  const avgTech = techResults.length > 0
-    ? (techResults.reduce((acc, r) => acc + r.relevance_score, 0) / techResults.length) * 100
-    : 75 // Neutral default if no technical questions were asked
-
-  const overallScore = Math.round(
-    (avgRelevance * 0.4) + 
-    (avgTech * 0.3) + 
-    (avgConfidence * 0.3)
-  )
-
-  useEffect(() => {
-    if (results.length > 0) {
-      console.log('--- Score Calculation Debug ---')
-      console.log('Average Relevance (40% weight):', avgRelevance.toFixed(2) + '%')
-      console.log('Average Technical (30% weight):', avgTech.toFixed(2) + '%')
-      console.log('Average Communication/Conf (30% weight):', avgConfidence.toFixed(2) + '%')
-      console.log('Overall Score calculation: (Rel*0.4) + (Tech*0.3) + (Conf*0.3)')
-      console.log('Final Overall Score:', overallScore)
-      console.log('Raw Results:', results)
-      console.log('------------------------------')
-    }
-  }, [results, avgRelevance, avgTech, avgConfidence, overallScore])
-
-  const feedback = {
-    overallScore: overallScore,
-    communicationScore: Math.round(avgConfidence),
-    technicalScore: Math.round(avgTech),
-    confidenceScore: Math.round(avgConfidence),
-
-
-
-    strengths: [
-      'Good use of technical keywords',
-      avgConfidence > 75 ? 'Strong and steady confidence levels' : 'Consistent response attempts',
-      'Relevant answers matching question context',
-      'Professional sentiment detected in speech',
-    ],
-    improvements: [
-      'Try to minimize filler words like "um" or "uh"',
-      'Elaborate more on specific project examples',
-      'Ensure all key requirements are addressed',
-      'Maintain a consistent pace of speaking',
-    ],
+  const feedback = report || {
+    overallScore: 0,
+    communicationScore: 0,
+    technicalScore: 0,
+    confidenceScore: 0,
+    strengths: ['Analyzing...'],
+    improvements: ['Analyzing...'],
   }
 
   const scores = [
@@ -162,32 +111,37 @@ export default function FeedbackClient() {
             <h2 className="text-lg font-bold text-white">Detailed Transcript Review</h2>
           </div>
           <div className="space-y-4">
-            {results.map((res, i) => (
-              <div key={i} className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-semibold text-indigo-400">Question {i + 1}</h4>
-                  <div className="flex gap-3 text-[10px] uppercase tracking-wider font-bold">
-                    <span className="text-emerald-400">Relevance: {Math.round(res.relevance_score * 100)}%</span>
-                    <span className="text-cyan-400">Confidence: {Math.round(res.confidence_score * 100)}%</span>
+            {questions.map((q, idx) => {
+              const res = results.find(r => r.questionIndex === idx);
+              if (!res) return null; // Or show a skipped state if desired
+              
+              return (
+                <div key={idx} className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-semibold text-indigo-400">Question {idx + 1}</h4>
+                    <div className="flex gap-3 text-[10px] uppercase tracking-wider font-bold">
+                      <span className="text-emerald-400">Relevance: {Math.round(res.relevance_score * 100)}%</span>
+                      <span className="text-cyan-400">Confidence: {Math.round(res.confidence_score * 100)}%</span>
+                    </div>
                   </div>
-                </div>
-                <p className="text-xs text-white/40 mb-3 italic">"{questions[i]?.text || 'General Question'}"</p>
-                <div className="p-3 rounded-lg bg-black/20 border border-white/[0.04]">
-                  <p className="text-sm text-white/70 leading-relaxed font-mono">
-                    {res.transcript || "No transcript available for this response."}
-                  </p>
-                </div>
-                {res.keywords_found.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {res.keywords_found.map(kw => (
-                      <span key={kw} className="text-[10px] px-2 py-0.5 rounded bg-white/[0.05] text-white/40 border border-white/[0.05]">
-                        {kw}
-                      </span>
-                    ))}
+                  <p className="text-xs text-white/40 mb-3 italic">"{q.text}"</p>
+                  <div className="p-3 rounded-lg bg-black/20 border border-white/[0.04]">
+                    <p className="text-sm text-white/70 leading-relaxed font-mono">
+                      {res.transcript || "No transcript available for this response."}
+                    </p>
                   </div>
-                )}
-              </div>
-            ))}
+                  {res.keywords_found.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {res.keywords_found.map(kw => (
+                        <span key={kw} className="text-[10px] px-2 py-0.5 rounded bg-white/[0.05] text-white/40 border border-white/[0.05]">
+                          {kw}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 

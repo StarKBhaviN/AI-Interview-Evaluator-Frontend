@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react'
 import { Brain, Check } from 'lucide-react'
 
-import { analyzeAudio, AnalysisResponse } from '@/lib/api'
+import { analyzeAudio, AnalysisResponse, generateReport } from '@/lib/api'
 
 const statuses = [
   { label: 'Uploading audio to AI engine', icon: '🎤' },
@@ -27,7 +27,7 @@ export default function ProcessingClient() {
           return
         }
         
-        const paths = JSON.parse(storedPaths) as string[]
+        const paths = JSON.parse(storedPaths) as Record<number, string>
         const storedQuestions = localStorage.getItem('interviewQuestions')
         const questions = storedQuestions ? JSON.parse(storedQuestions) as any[] : []
         
@@ -45,11 +45,21 @@ export default function ProcessingClient() {
           setCurrentIndex(i)
           
           if (i === 1) { // Analyzing speech clarity & sentiment (First real API call point)
-            for (let j = 0; j < paths.length; j++) {
+            // Iterate through questions and find matching paths in the record
+            for (let j = 0; j < questions.length; j++) {
               const path = paths[j]
+              if (!path) continue // Skip questions that weren't answered
+              
               const questionText = questions[j]?.text || ""
               const res = await analyzeAudio(path, questionText, skills)
-              allResults.push(res)
+              
+              // We need to keep track of which question this result belongs to
+              allResults.push({
+                ...res,
+                questionIndex: j,
+                questionText: questionText,
+                audioPath: path
+              })
             }
           }
 
@@ -61,17 +71,20 @@ export default function ProcessingClient() {
         setResults(allResults)
         localStorage.setItem('interviewResults', JSON.stringify(allResults))
         
+        // --- NEW: Generate Real AI Report ---
+        setCurrentIndex(statuses.length - 1)
+        const finalReport = await generateReport(allResults, warningLogs)
+        localStorage.setItem('interviewReport', JSON.stringify(finalReport))
+        
         // Save to interview history
         const candidateData = JSON.parse(localStorage.getItem('candidateData') || '{}')
-        const avgRel = allResults.reduce((acc, r) => acc + r.relevance_score, 0) / allResults.length
-        const avgConf = allResults.reduce((acc, r) => acc + r.confidence_score, 0) / allResults.length
-        const overall = Math.round((avgRel * 0.4 + 0.75 * 0.3 + avgConf * 0.3) * 100)
+        const overall = finalReport.overallScore
 
         // Combine results with audio paths and question text for history
-        const detailedResults = allResults.map((res, idx) => ({
+        const detailedResults = allResults.map((res: any) => ({
           ...res,
-          audioPath: paths[idx],
-          questionText: questions[idx]?.text || `Question ${idx + 1}`
+          audioPath: res.audioPath,
+          questionText: res.questionText
         }))
 
 
@@ -82,7 +95,8 @@ export default function ProcessingClient() {
           score: overall,
           questionsCount: allResults.length,
           warnings: warningLogs,
-          details: detailedResults
+          details: detailedResults,
+          report: finalReport
         }
 
 

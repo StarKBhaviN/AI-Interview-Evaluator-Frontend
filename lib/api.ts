@@ -6,6 +6,9 @@ export interface AnalysisResponse {
   confidence_score: number;
   sentiment: string;
   keywords_found: string[];
+  questionIndex?: number;
+  questionText?: string;
+  audioPath?: string;
 }
 
 export async function analyzeAudio(filePath: string, question?: string, skills?: string[]): Promise<AnalysisResponse> {
@@ -58,6 +61,53 @@ export async function parseResume(file: File): Promise<{ skills: string[] }> {
 
   if (!response.ok) {
     throw new Error(`Failed to parse resume: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export interface InterviewReport {
+  overallScore: number;
+  communicationScore: number;
+  technicalScore: number;
+  confidenceScore: number;
+  strengths: string[];
+  improvements: string[];
+  summary: string;
+}
+
+export async function generateReport(results: AnalysisResponse[], warnings: any[]): Promise<InterviewReport> {
+  const response = await fetch(`${BACKEND_URL}/generate-report`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ results, warnings }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to generate report: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export interface Question {
+  id: string;
+  text: string;
+  category: string;
+  difficulty: string;
+  tags: string[];
+  keywords: string[];
+}
+
+export async function generateInterviewQuestions(skills: string[], position: string): Promise<Question[]> {
+  const response = await fetch(`${BACKEND_URL}/api/generate-questions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ skills, position }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to generate questions: ${response.statusText}`);
   }
 
   return response.json();

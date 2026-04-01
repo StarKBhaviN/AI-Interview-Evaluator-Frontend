@@ -1,6 +1,8 @@
 "use client"
 import React from 'react'
 import { Download, X, Heart, Mail } from 'lucide-react'
+import { save } from '@tauri-apps/plugin-dialog'
+import { writeFile } from '@tauri-apps/plugin-fs'
 
 export default function ExitClient() {
   const candidateData = typeof window !== 'undefined'
@@ -72,20 +74,20 @@ export default function ExitClient() {
     doc.text('Detailed Q&A Transcript', 15, (doc as any).lastAutoTable.finalY + 20)
     
     let yPos = (doc as any).lastAutoTable.finalY + 30
-    
     const interviewQuestions = JSON.parse(localStorage.getItem('interviewQuestions') || '[]')
 
-    results.forEach((res: any, index: number) => {
+    interviewQuestions.forEach((q: any, index: number) => {
+      const res = results.find((r: any) => r.questionIndex === index)
+      if (!res) return // Only include answered questions in PDF for now, or label as skipped
+
       if (yPos > 250) {
         doc.addPage()
         yPos = 20
       }
       
-      const questionText = interviewQuestions[index]?.text || `Question ${index + 1}`
-      
       doc.setFontSize(11)
       doc.setFont('helvetica', 'bold')
-      doc.text(`Q${index + 1}: ${questionText}`, 15, yPos)
+      doc.text(`Q${index + 1}: ${q.text}`, 15, yPos)
       yPos += 7
       
       doc.setFont('helvetica', 'italic')
@@ -103,7 +105,27 @@ export default function ExitClient() {
       yPos += 15
     })
 
-    doc.save(`Interview-Report-${candidateData.name || 'Candidate'}.pdf`)
+    // --- Tauri Native Save Dialog ---
+    try {
+      const suggestedName = `Interview-Report-${candidateData.name || 'Candidate'}.pdf`
+      const filePath = await save({
+        filters: [{
+          name: 'PDF',
+          extensions: ['pdf']
+        }],
+        defaultPath: suggestedName
+      })
+
+      if (filePath) {
+        const pdfOutput = doc.output('arraybuffer')
+        await writeFile(filePath, new Uint8Array(pdfOutput))
+        console.log('File saved to:', filePath)
+      }
+    } catch (err) {
+      console.error('Failed to save PDF using native dialog:', err)
+      // Fallback for non-tauri or errors
+      doc.save(`Interview-Report-${candidateData.name || 'Candidate'}.pdf`)
+    }
   }
 
 
@@ -128,8 +150,8 @@ export default function ExitClient() {
             {[
               { label: 'Candidate', value: candidateData.name || 'N/A' },
               { label: 'Position', value: candidateData.position || 'N/A' },
-              { label: 'Questions Answered', value: '5' },
-              { label: 'Overall Score', value: '82/100', highlight: true },
+              { label: 'Questions Answered', value: JSON.parse(localStorage.getItem('interviewResults') || '[]').length.toString() },
+              { label: 'Overall Score', value: `${JSON.parse(localStorage.getItem('interviewReport') || '{}').overallScore || 0}/100`, highlight: true },
             ].map((item, i) => (
               <div key={i} className="flex justify-between text-sm">
                 <span className="text-white/30">{item.label}</span>

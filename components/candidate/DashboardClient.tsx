@@ -457,21 +457,21 @@ export default function DashboardClient() {
                     <div className="divide-y divide-white/[0.04]">
                       {selectedHistory.warnings.map((log: any, idx: number) => (
                         <div key={idx} className="p-4 px-6 flex items-start gap-6 hover:bg-white/[0.02] transition-colors group">
-                          <div className="flex flex-col items-center gap-2 pt-1">
-                             <div className="text-[10px] font-black font-mono text-indigo-400/60 bg-indigo-500/5 px-2 py-1 rounded border border-indigo-500/10">
+                          <div className="flex flex-col items-center gap-3 pt-2">
+                             <div className="text-sm font-black font-mono text-indigo-400 bg-indigo-500/10 px-3 py-1.5 rounded-xl border border-indigo-500/20 shadow-lg shadow-indigo-500/5">
                                 {log.time}
                              </div>
-                             <div className="w-[1px] h-full bg-white/5 group-last:hidden" />
+                             <div className="w-[2px] h-full bg-white/10 group-last:hidden" />
                           </div>
-                          <div className="flex-1 space-y-1">
-                             <div className="flex flex-wrap gap-2">
+                          <div className="flex-1 py-1">
+                             <div className="flex flex-wrap gap-2.5 mb-2">
                                 {log.flags.map((flag: string, fIdx: number) => (
-                                  <span key={fIdx} className="text-[9px] font-black uppercase tracking-tight text-white/40 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">
+                                  <span key={fIdx} className="text-xs font-black uppercase tracking-wider text-red-500 bg-red-500/10 border border-red-500/20 px-3 py-1 rounded-lg">
                                     {flag}
                                   </span>
                                 ))}
                              </div>
-                             <p className="text-xs text-white/20 font-medium">Flagged by AI Proctoring Assistant</p>
+                             <p className="text-sm text-white/40 font-semibold tracking-wide">AI Proctoring System Incident Flag</p>
                           </div>
                         </div>
                       ))}

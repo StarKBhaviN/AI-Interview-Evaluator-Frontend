@@ -271,12 +271,27 @@ export default function InterviewClient() {
       startVisualizer()
       const confidenceInterval = setInterval(() => {
         setConfidence((prev) => {
-          if (prev === 0) return 75 + Math.random() * 10;
-          const change = (Math.random() - 0.45) * 3;
-          const next = prev + change;
-          return Math.min(95, Math.max(65, next));
+          const maxVol = Math.max(...waveform, 0)
+          let target = 75
+          
+          if (maxVol < 5) {
+            // Very quiet - user is likely not speaking
+            target = 30 + Math.random() * 10
+          } else if (maxVol < 15) {
+            // Low volume
+            target = 55 + Math.random() * 15
+          } else {
+            // Good volume
+            target = 75 + Math.random() * 15
+          }
+
+          // Smooth transition towards target
+          const diff = target - prev
+          const next = prev + (diff * 0.2) // 20% movement towards target per tick
+          
+          return Math.min(98, Math.max(15, next))
         })
-      }, 100)
+      }, 200)
       
       return () => {
         if (animationFrame) cancelAnimationFrame(animationFrame)
@@ -291,7 +306,28 @@ export default function InterviewClient() {
 
   const handleTimeUp = () => { if (isRecording) handleStopRecording(); handleNext() }
   
-  const [audioPaths, setAudioPaths] = useState<string[]>([])
+  const [audioPaths, setAudioPaths] = useState<Record<number, string>>({})
+
+  const handleBack = () => {
+    if (currentQ > 0) {
+      setCurrentQ(currentQ - 1)
+      setTimeLeft(180)
+      setConfidence(0)
+      setShowSubmit(false)
+    }
+  }
+
+  const handleJump = (index: number) => {
+    if (isRecording) {
+      setWarningMsg('Stop recording before jumping to another question')
+      setShowWarning(true)
+      return
+    }
+    setCurrentQ(index)
+    setTimeLeft(180)
+    setConfidence(0)
+    setShowSubmit(false)
+  }
 
   const handleStartRecording = async () => { 
     if (permissions.audio !== 'granted' || permissions.video !== 'granted') {
@@ -312,7 +348,7 @@ export default function InterviewClient() {
       const path = await invoke<string>('stop_audio_capture')
       setIsRecording(false)
       setShowSubmit(true)
-      setAudioPaths(prev => [...prev, path])
+      setAudioPaths(prev => ({ ...prev, [currentQ]: path }))
     } catch (err) {
       console.error('Failed to stop recording', err)
     }
@@ -320,14 +356,19 @@ export default function InterviewClient() {
 
   const handleNext = () => {
     setShowSubmit(false)
-    if (isLastQuestion) { 
-      // Save paths and questions to localStorage for the processing page
-      localStorage.setItem('interviewAudioPaths', JSON.stringify(audioPaths))
-      localStorage.setItem('interviewQuestions', JSON.stringify(questions))
-      localStorage.setItem('interviewWarnings', JSON.stringify(warningLogs))
-      window.location.href = '/processing' 
+    if (!isLastQuestion) { 
+      setCurrentQ(currentQ + 1)
+      setTimeLeft(180)
+      setConfidence(0)
     }
-    else { setCurrentQ(currentQ + 1); setTimeLeft(180); setConfidence(0) }
+  }
+
+  const handleFinish = () => {
+    // Save mapped paths and questions to localStorage for the processing page
+    localStorage.setItem('interviewAudioPaths', JSON.stringify(audioPaths))
+    localStorage.setItem('interviewQuestions', JSON.stringify(questions))
+    localStorage.setItem('interviewWarnings', JSON.stringify(warningLogs))
+    window.location.href = '/processing' 
   }
 
 
@@ -510,6 +551,36 @@ export default function InterviewClient() {
           <h2 className="text-2xl font-bold text-white leading-tight max-w-3xl">
             {currentQuestion.text}
           </h2>
+
+          {/* Question Navigator Bubbles */}
+          <div className="flex flex-wrap gap-2 mt-6 p-3 rounded-2xl bg-white/[0.03] border border-white/[0.05]">
+            {questions.map((_, idx) => {
+              const isCurrent = idx === currentQ
+              const isAnswered = !!audioPaths[idx]
+              return (
+                <button
+                  key={idx}
+                  onClick={() => handleJump(idx)}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs transition-all duration-300 relative group/bubble ${
+                    isCurrent 
+                      ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 scale-110 z-10' 
+                      : isAnswered
+                      ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
+                      : 'bg-white/[0.02] border border-white/[0.05] text-white/20 hover:bg-white/[0.08] hover:text-white/40'
+                  }`}
+                >
+                  {idx + 1}
+                  {isAnswered && !isCurrent && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-500 border-2 border-[#020205] shadow-lg" />
+                  )}
+                  {/* Tooltip */}
+                  <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 px-2 py-1 rounded bg-black/80 text-[8px] text-white opacity-0 group-hover/bubble:opacity-100 pointer-events-none whitespace-nowrap z-20">
+                     Question {idx + 1} {isAnswered ? '(Answered)' : ''}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         {/* Dual Screen Stage */}
@@ -601,6 +672,14 @@ export default function InterviewClient() {
 
         {/* Command Bar */}
         <div className="flex items-center justify-center gap-4 mt-12 pb-12">
+            <button
+               onClick={handleBack}
+               disabled={currentQ === 0 || isRecording}
+               className="w-20 h-20 rounded-full bg-white/[0.03] border border-white/[0.08] flex items-center justify-center text-white/50 hover:text-white hover:bg-white/[0.08] hover:border-white/20 transition-all active:scale-90 disabled:opacity-20 disabled:cursor-not-allowed rotate-180"
+             >
+               <SkipForward className="w-6 h-6" />
+            </button>
+
             {!isRecording ? (
               <button
                 onClick={handleStartRecording}
@@ -625,10 +704,23 @@ export default function InterviewClient() {
             
             <button
               onClick={handleNext}
-              className="w-20 h-20 rounded-full bg-white/[0.03] border border-white/[0.08] flex items-center justify-center text-white/50 hover:text-white hover:bg-white/[0.08] hover:border-white/20 transition-all active:scale-90"
+              disabled={isLastQuestion || isRecording}
+              className="w-20 h-20 rounded-full bg-white/[0.03] border border-white/[0.08] flex items-center justify-center text-white/50 hover:text-white hover:bg-white/[0.08] hover:border-white/20 transition-all active:scale-90 disabled:opacity-20 disabled:cursor-not-allowed"
             >
               <SkipForward className="w-6 h-6" />
             </button>
+        </div>
+
+        {/* Final Submit Button - Only shows up when we reach the end or have answered everything */}
+        <div className={`flex flex-col items-center justify-center -mt-4 animate-fade-in transition-all duration-500 ${isLastQuestion ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none h-0'}`}>
+           <p className="text-white/30 text-[10px] font-bold uppercase tracking-[0.3em] mb-4">Final session reached</p>
+           <button
+             onClick={handleFinish}
+             className="px-16 py-5 rounded-[2rem] bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black text-xs uppercase tracking-[0.4em] shadow-[0_0_50px_rgba(16,185,129,0.3)] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-4"
+           >
+             Submit Final Interview
+             <AlertTriangle className="w-4 h-4" />
+           </button>
         </div>
       </div>
 
@@ -643,7 +735,9 @@ export default function InterviewClient() {
                 <span className="text-sm font-medium text-white/50">Confidence Score</span>
                 <span className="text-sm font-bold text-emerald-400">{Math.round(confidence)}%</span>
               </div>
-              <Progress value={confidence} variant="success" size="sm" />
+              <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${confidence}%` }} />
+              </div>
             </div>
             <div className="flex gap-3">
               <button
@@ -656,7 +750,7 @@ export default function InterviewClient() {
                 onClick={handleNext}
                 className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold text-sm shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
               >
-                Submit
+                Confirm Answer
               </button>
             </div>
           </div>

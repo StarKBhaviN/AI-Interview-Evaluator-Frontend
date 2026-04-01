@@ -11,15 +11,19 @@
       "identifier": "fs:allow-read-file",
       "allow": [{ "path": "$APPDATA/**" }]
     },
-    {
-      "identifier": "fs:allow-write-file",
-      "allow": [{ "path": "$APPDATA/**" }]
-    },
     "fs:default",
+    "dialog:default",
     "http:default",
-
     "shell:default",
     "log:default",
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [{ "path": "**" }]
+    },
     "core:path:default"
   ]
 }

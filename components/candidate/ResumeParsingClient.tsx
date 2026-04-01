@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react'
 import { Loader2, FileText, X, Plus, Sparkles } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/store/app.store'
-import { parseResume } from '@/lib/api'
+import { parseResume, generateInterviewQuestions } from '@/lib/api'
+import { invoke } from '@tauri-apps/api/core'
 
 interface Skill {
   id: string
@@ -17,6 +18,7 @@ export default function ResumeParsingClient() {
   const [extractedSkills, setExtractedSkills] = useState<Skill[]>([])
   const [newSkill, setNewSkill] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
 
   useEffect(() => {
     const performParsing = async () => {
@@ -55,9 +57,28 @@ export default function ResumeParsingClient() {
     }
   }
 
-  const handleConfirm = () => {
-    localStorage.setItem('extractedSkills', JSON.stringify(extractedSkills))
-    router.push('/instructions')
+  const handleConfirm = async () => {
+    setIsGenerating(true)
+    try {
+      const skillsStrings = extractedSkills.map(s => s.name)
+      localStorage.setItem('extractedSkills', JSON.stringify(extractedSkills))
+      
+      const candidateData = JSON.parse(localStorage.getItem('candidateData') || '{}')
+      const position = candidateData.position || 'Software Engineer'
+      
+      // Generate dynamic questions based on skills
+      const questions = await generateInterviewQuestions(skillsStrings, position)
+      
+      // Persist them to the Rust backend (questions.json)
+      await invoke('save_questions', { questions })
+      
+      router.push('/instructions')
+    } catch (err) {
+      console.error('Failed to prepare interview:', err)
+      setError('Failed to generate interview questions. Please try again.')
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   const candidateName = typeof window !== 'undefined'
@@ -156,9 +177,17 @@ export default function ResumeParsingClient() {
 
               <button
                 onClick={handleConfirm}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold text-sm shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                disabled={isGenerating}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold text-sm shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Confirm & Continue
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Preparing your interview...
+                  </>
+                ) : (
+                  'Confirm & Continue'
+                )}
               </button>
             </div>
           )}
