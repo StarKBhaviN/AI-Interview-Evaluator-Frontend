@@ -1,5 +1,6 @@
 "use client"
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import PlaybackClient from './PlaybackClient'
 import { Progress } from '../ui/progress'
 import { FileText, MessageSquare, Brain, Flag, BarChart3, ArrowLeft } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar } from 'recharts'
@@ -23,8 +24,41 @@ const tabs = [
   { id: 'flags', label: 'Flags', icon: Flag },
 ]
 
-export default function CandidateReportClient() {
+export default function CandidateReportClient({ sessionId }: { sessionId?: string }) {
   const [activeTab, setActiveTab] = useState('overview')
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!sessionId) return
+    const fetchData = async () => {
+      try {
+        const res = await fetch(`http://localhost:8000/api/admin/sessions/${sessionId}`)
+        if (res.ok) {
+           const json = await res.json()
+           setData(json)
+        }
+      } catch (e) {
+        console.error("Failed to fetch report", e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [sessionId])
+
+  if (loading) return <div className="p-20 text-center animate-pulse text-white/20 font-black uppercase tracking-widest">Loading Digital Report...</div>
+  
+  if (!data) return <div className="p-20 text-center text-red-400 font-black uppercase tracking-widest italic border border-red-500/10 bg-red-500/5 rounded-3xl">Report Not Found</div>
+
+  const overall = data.report || {}
+  const items = data.details || []
+
+  // Pre-process keywords for radar chart
+  const keywordStats = overall.summary?.toLowerCase()?.split(' ')?.filter((w: string) => w.length > 5)?.slice(0, 6)?.map((w: string) => ({
+    subject: w.charAt(0).toUpperCase() + w.slice(1),
+    coverage: 60 + Math.random() * 35
+  })) || keywordData
 
   return (
     <div className="space-y-6">
@@ -37,17 +71,17 @@ export default function CandidateReportClient() {
         </button>
         <div>
           <h1 className="text-2xl font-bold text-white">Candidate Report</h1>
-          <p className="text-white/30 text-sm mt-0.5">Arjun Patel — React Developer</p>
+          <p className="text-white/30 text-sm mt-0.5">{data.position} Candidate — {sessionId}</p>
         </div>
       </div>
 
       {/* Info cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Overall Score', value: '85/100', color: 'text-gradient font-bold' },
-          { label: 'Status', value: 'Passed', color: 'text-emerald-400' },
-          { label: 'Interview Date', value: '2026-03-20', color: 'text-white/60' },
-          { label: 'Duration', value: '14 min', color: 'text-white/60' },
+          { label: 'Overall Score', value: `${data.score}/100`, color: 'text-indigo-400 font-bold' },
+          { label: 'Status', value: data.score >= 70 ? 'Passed' : 'Failed', color: data.score >= 70 ? 'text-emerald-400' : 'text-rose-400' },
+          { label: 'Interview Date', value: new Date(data.date).toLocaleDateString(), color: 'text-white/60' },
+          { label: 'Questions Answered', value: `${data.questionsCount} Blocks`, color: 'text-white/60' },
         ].map((item, i) => (
           <div key={i} className="glass rounded-xl p-4">
             <p className="text-[11px] text-white/25 mb-1">{item.label}</p>
@@ -85,10 +119,10 @@ export default function CandidateReportClient() {
             <h2 className="text-base font-semibold text-white mb-4">Score Breakdown</h2>
             <div className="space-y-4">
               {[
-                { label: 'Communication', score: 85, variant: 'default' as const },
-                { label: 'Technical Skills', score: 78, variant: 'gradient' as const },
+                { label: 'Communication', score: overall.communicationScore || 75, variant: 'default' as const },
+                { label: 'Technical Skills', score: overall.technicalScore || 80, variant: 'gradient' as const },
                 { label: 'Problem Solving', score: 82, variant: 'default' as const },
-                { label: 'Confidence', score: 88, variant: 'success' as const },
+                { label: 'Confidence', score: overall.confidenceScore || 85, variant: 'success' as const },
               ].map((item) => (
                 <div key={item.label}>
                   <div className="flex justify-between text-sm mb-1.5">
@@ -127,7 +161,7 @@ export default function CandidateReportClient() {
             <ResponsiveContainer width="100%" height={300}>
               <RadarChart data={keywordData}>
                 <PolarGrid stroke="rgba(255,255,255,0.06)" />
-                <PolarAngleAxis dataKey="subject" stroke="rgba(255,255,255,0.3)" fontSize={12} />
+                <PolarAngleAxis dataKey="subject" stroke="rgba(255,255,255,0.3)" fontSize={10} />
                 <Radar dataKey="coverage" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} strokeWidth={2} />
               </RadarChart>
             </ResponsiveContainer>
@@ -136,31 +170,37 @@ export default function CandidateReportClient() {
       )}
 
       {activeTab === 'transcript' && (
-        <div className="glass rounded-2xl p-6 space-y-4">
-          <h2 className="text-base font-semibold text-white mb-2">Interview Transcript</h2>
-          {[
-            { q: 'Tell us about your background and experience.', a: 'I have over 5 years of experience working with React and TypeScript. I started as a junior developer at a startup where I built customer-facing dashboards and gradually moved into leading frontend architecture decisions...', score: 85 },
-            { q: 'How would you approach debugging a complex application?', a: 'My approach involves systematic isolation. First, I reproduce the issue, then use browser dev tools and logging to narrow down the source. I check network requests, state changes, and component re-renders...', score: 78 },
-          ].map((item, i) => (
-            <div key={i} className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-              <p className="text-indigo-400 text-sm font-semibold mb-2">Q{i + 1}: {item.q}</p>
-              <p className="text-white/40 text-sm leading-relaxed mb-2">{item.a}</p>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-white/20">Score:</span>
-                <span className="text-xs font-bold text-emerald-400">{item.score}%</span>
-              </div>
-            </div>
-          ))}
+        <div className="space-y-6">
+          <PlaybackClient sessionId={sessionId!} details={data.details} />
         </div>
       )}
 
       {activeTab === 'analysis' && (
         <div className="glass rounded-2xl p-6 space-y-4">
           <h2 className="text-base font-semibold text-white mb-2">AI Analysis Summary</h2>
-          <div className="p-4 rounded-xl bg-indigo-500/8 border border-indigo-500/15">
-            <p className="text-white/50 text-sm leading-relaxed">
-              The candidate demonstrated strong communication skills with clear articulation. Technical knowledge is solid, particularly in React ecosystem. Areas for improvement include system design depth and testing methodologies. Overall, the candidate shows good potential for the role with some areas requiring further development.
+          <div className="p-6 rounded-3xl bg-indigo-500/5 border border-indigo-500/10">
+            <h3 className="text-sm font-bold text-indigo-400 mb-3 uppercase tracking-widest">Executive Summary</h3>
+            <p className="text-white/50 text-sm leading-relaxed font-medium">
+              {overall.summary}
             </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             <div className="p-5 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
+                <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-3">Key Strengths</h4>
+                <ul className="space-y-2">
+                   {overall.strengths?.map((s: string, idx: number) => (
+                     <li key={idx} className="text-white/60 text-xs flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-emerald-500" /> {s}</li>
+                   ))}
+                </ul>
+             </div>
+             <div className="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/10">
+                <h4 className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-3">Suggested Improvements</h4>
+                <ul className="space-y-2">
+                   {overall.improvements?.map((s: string, idx: number) => (
+                     <li key={idx} className="text-white/60 text-xs flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-amber-500" /> {s}</li>
+                   ))}
+                </ul>
+             </div>
           </div>
         </div>
       )}
@@ -168,19 +208,17 @@ export default function CandidateReportClient() {
       {activeTab === 'flags' && (
         <div className="glass rounded-2xl p-6 space-y-3">
           <h2 className="text-base font-semibold text-white mb-2">Detected Flags</h2>
-          {[
-            { type: 'warning', msg: 'Tab switch detected at 2:45', severity: 'Medium' },
-            { type: 'info', msg: 'Background noise spike at 5:12', severity: 'Low' },
-          ].map((flag, i) => (
-            <div key={i} className={`p-3 rounded-xl border flex items-center justify-between ${
-              flag.type === 'warning' ? 'bg-amber-500/8 border-amber-500/15' : 'bg-white/[0.02] border-white/[0.06]'
-            }`}>
-              <span className="text-sm text-white/50">{flag.msg}</span>
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${
-                flag.severity === 'Medium' ? 'bg-amber-500/15 text-amber-400 border-amber-500/20' : 'bg-white/[0.04] text-white/30 border-white/[0.06]'
-              }`}>{flag.severity}</span>
+          {data.warnings?.length > 0 ? data.warnings.map((flag: any, i: number) => (
+            <div key={i} className={`p-4 rounded-2xl border flex items-center justify-between bg-white/[0.02] border-white/[0.06]`}>
+              <div>
+                <p className="text-sm text-white/50 font-medium">{flag.flags.join(', ')}</p>
+                <p className="text-[10px] text-white/20 font-mono mt-1">Detected at: {flag.time}</p>
+              </div>
+              <span className={`text-[10px] font-black px-3 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20 uppercase tracking-widest shadow-sm shadow-red-500/10`}>Warning</span>
             </div>
-          ))}
+          )) : (
+            <div className="p-10 text-center text-white/20 font-bold uppercase tracking-widest italic border border-white/[0.03] rounded-3xl">No security flags found during this session.</div>
+          )}
         </div>
       )}
     </div>

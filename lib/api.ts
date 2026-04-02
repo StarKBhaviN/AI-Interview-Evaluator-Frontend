@@ -112,3 +112,39 @@ export async function generateInterviewQuestions(skills: string[], position: str
 
   return response.json();
 }
+
+export async function submitSession(sessionData: any): Promise<{ status: string; session_id: string }> {
+  const response = await fetch(`${BACKEND_URL}/api/admin/sessions/submit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(sessionData),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to submit session: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function uploadAudio(filePath: string, sessionId: string, questionIndex: number): Promise<{ status: string }> {
+  const { readFile } = await import('@tauri-apps/plugin-fs');
+  const audioData = await readFile(filePath);
+  const blob = new Blob([audioData as any], { type: 'audio/wav' });
+
+  const formData = new FormData();
+  formData.append('file', blob, `recording_${questionIndex}.wav`);
+  formData.append('session_id', sessionId);
+  formData.append('question_index', questionIndex.toString());
+
+  const response = await fetch(`${BACKEND_URL}/api/admin/audio/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to upload audio: ${response.statusText}`);
+  }
+
+  return response.json();
+}

@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react'
 import { Brain, Check } from 'lucide-react'
 
-import { analyzeAudio, AnalysisResponse, generateReport } from '@/lib/api'
+import { analyzeAudio, AnalysisResponse, generateReport, submitSession, uploadAudio } from '@/lib/api'
 
 const statuses = [
   { label: 'Uploading audio to AI engine', icon: '🎤' },
@@ -87,9 +87,9 @@ export default function ProcessingClient() {
           questionText: res.questionText
         }))
 
-
+        const sessionId = Date.now().toString()
         const historyItem = {
-          id: Date.now().toString(),
+          id: sessionId,
           date: new Date().toISOString(),
           position: candidateData.position || 'General',
           score: overall,
@@ -99,6 +99,17 @@ export default function ProcessingClient() {
           report: finalReport
         }
 
+        // --- NEW: Upload Audio Files & Submit to Admin Backend ---
+        for (const res of allResults) {
+          if (res.audioPath) {
+             try {
+                await uploadAudio(res.audioPath, sessionId, res.questionIndex!)
+             } catch (e) {
+                console.error("Failed to upload chunk:", e)
+             }
+          }
+        }
+        await submitSession(historyItem)
 
         const existingHistory = JSON.parse(localStorage.getItem('interviewHistory') || '[]')
         localStorage.setItem('interviewHistory', JSON.stringify([historyItem, ...existingHistory]))

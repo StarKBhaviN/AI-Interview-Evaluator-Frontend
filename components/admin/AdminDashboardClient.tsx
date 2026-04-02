@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
   Shield, 
   Users, 
@@ -17,16 +17,44 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
+import AIModelCenter from './AIModelCenter'
+
 export default function AdminDashboardClient() {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<'overview' | 'clients' | 'candidates'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'clients' | 'candidates' | 'ai-models'>('overview')
 
-  const stats = [
-    { label: 'Total Clients', value: '24', icon: Briefcase, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-    { label: 'Total Candidates', value: '1,428', icon: Users, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
-    { label: 'Interviews Completed', value: '3,842', icon: CheckCircle2, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-    { label: 'Platform Growth', value: '+12%', icon: TrendingUp, color: 'text-rose-400', bg: 'bg-rose-500/10' },
-  ]
+  const [stats, setStats] = useState([
+    { label: 'Avg Score', value: '--', icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    { label: 'Total Candidates', value: '--', icon: Users, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
+    { label: 'Pass Rate', value: '--', icon: BarChart3, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+    { label: 'Growth', value: '+0%', icon: TrendingUp, color: 'text-rose-400', bg: 'bg-rose-500/10' },
+  ])
+  const [candidates, setCandidates] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const statsRes = await fetch('http://localhost:8000/api/admin/stats')
+        const statsData = await statsRes.json()
+        setStats([
+          { label: 'Avg Score', value: statsData.avgScore.toString(), icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+          { label: 'Total Candidates', value: statsData.totalCandidates.toString(), icon: Users, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
+          { label: 'Pass Rate', value: `${statsData.passRate}%`, icon: BarChart3, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+          { label: 'Growth', value: '+12%', icon: TrendingUp, color: 'text-rose-400', bg: 'bg-rose-500/10' },
+        ])
+
+        const candRes = await fetch('http://localhost:8000/api/admin/sessions')
+        const candData = await candRes.json()
+        setCandidates(candData)
+      } catch (err) {
+        console.error('Failed to fetch admin data', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
 
   const handleLogout = () => {
     router.push('/')
@@ -77,7 +105,7 @@ export default function AdminDashboardClient() {
 
         {/* Dynamic Tabs */}
         <div className="flex items-center gap-1 p-1 bg-white/[0.02] border border-white/[0.06] rounded-2xl w-fit">
-          {(['overview', 'clients', 'candidates'] as const).map((tab) => (
+          {(['overview', 'clients', 'candidates', 'ai-models'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -87,13 +115,14 @@ export default function AdminDashboardClient() {
                   : 'text-white/40 hover:text-white hover:bg-white/[0.04]'
               }`}
             >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === 'ai-models' ? 'AI Models' : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </div>
 
         {/* Tab Content */}
         <div className="glass rounded-[2.5rem] border border-white/[0.06] bg-white/[0.01] overflow-hidden min-h-[400px]">
+          {activeTab === 'ai-models' && <AIModelCenter />}
           {activeTab === 'overview' && (
             <div className="p-10 flex flex-col items-center justify-center h-full text-center space-y-6">
               <div className="w-20 h-20 rounded-[2rem] bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
@@ -112,7 +141,7 @@ export default function AdminDashboardClient() {
             </div>
           )}
 
-          {activeTab !== 'overview' && (
+          {(activeTab === 'clients' || activeTab === 'candidates') && (
             <div className="p-0">
               <table className="w-full text-left">
                 <thead>
@@ -123,33 +152,38 @@ export default function AdminDashboardClient() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.04]">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <tr key={i} className="group hover:bg-white/[0.02] transition-colors">
+                  {candidates.map((cand, i) => (
+                    <tr key={cand.id} className="group hover:bg-white/[0.02] transition-colors cursor-pointer" onClick={() => router.push(`/admin/report/${cand.id}`)}>
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-4">
-                          <div className={`w-10 h-10 rounded-xl ${activeTab === 'clients' ? 'bg-emerald-500/10' : 'bg-indigo-500/10'} flex items-center justify-center font-bold text-xs`}>
-                            {activeTab === 'clients' ? 'C' : 'U'}{i}
+                          <div className={`w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center font-bold text-xs`}>
+                            {cand.position.charAt(0)}
                           </div>
                           <div>
                             <h4 className="font-bold text-white group-hover:text-rose-400 transition-colors">
-                              {activeTab === 'clients' ? `TechCorp Solutions ${i}` : `Alex Johnson ${i}`}
+                              {cand.position} Candidate
                             </h4>
-                            <p className="text-xs text-white/20">Active since March 2026</p>
+                            <p className="text-xs text-white/20">Session: {cand.id}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-8 py-6 text-center">
-                         <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider">
-                           Active
+                         <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-bold uppercase tracking-wider ${cand.score >= 70 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+                           {cand.score >= 70 ? 'Pass' : 'Fail'} ({cand.score}%)
                          </span>
                       </td>
                       <td className="px-8 py-6 text-right">
                         <button className="p-2 rounded-xl hover:bg-white/[0.05] text-white/20 hover:text-white transition-all">
-                          <MoreVertical className="w-5 h-5" />
+                          <ChevronRight className="w-5 h-5" />
                         </button>
                       </td>
                     </tr>
                   ))}
+                  {candidates.length === 0 && !loading && (
+                    <tr>
+                      <td colSpan={3} className="px-8 py-20 text-center text-white/20 font-bold uppercase tracking-widest italic">No candidates found</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

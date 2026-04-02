@@ -1,103 +1,112 @@
 "use client"
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { Play, Pause, SkipBack, SkipForward, Volume2, Download, ArrowLeft } from 'lucide-react'
 import { Progress } from '../ui/progress'
 
-const transcript = [
-  { time: '0:00', speaker: 'AI', text: 'Tell us about your background and experience in software development.', highlight: false },
-  { time: '0:05', speaker: 'Candidate', text: 'I have over 5 years of experience working with React and TypeScript.', highlight: false },
-  { time: '0:15', speaker: 'Candidate', text: 'I started as a junior developer at a startup where I built customer-facing dashboards.', highlight: false },
-  { time: '0:30', speaker: 'Candidate', text: 'I gradually moved into leading frontend architecture decisions for the team.', highlight: true },
-  { time: '0:45', speaker: 'Candidate', text: 'I have extensive experience with state management using Redux and Zustand.', highlight: false },
-  { time: '1:00', speaker: 'Candidate', text: 'Um, I also worked on, uh, performance optimization for large-scale applications.', highlight: true },
-]
-
-export default function PlaybackClient() {
+export default function PlaybackClient({ sessionId, details }: { sessionId: string, details: any[] }) {
+  const [activeSegment, setActiveSegment] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [progress, setProgress] = useState(35)
-  const [activeSegment, setActiveSegment] = useState(3)
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  const handleSegmentClick = (index: number) => {
+    setActiveSegment(index)
+    // Construct real backend audio URL
+    const url = `http://localhost:8000/api/admin/audio/${sessionId}/${details[index].questionIndex}`
+    setAudioUrl(url)
+    setIsPlaying(true)
+  }
+
+  const togglePlay = () => {
+    if (!audioRef.current) return
+    if (isPlaying) {
+      audioRef.current.pause()
+    } else {
+      audioRef.current.play()
+    }
+    setIsPlaying(!isPlaying)
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => (window.location.href = '/admin/candidates')}
-          className="p-2 rounded-xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] text-white/40 hover:text-white transition-all"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-white">Interview Playback</h1>
-          <p className="text-white/30 text-sm mt-0.5">Arjun Patel — React Developer</p>
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Player */}
-        <div className="glass rounded-2xl overflow-hidden lg:col-span-2">
-          {/* Video area */}
-          <div className="aspect-video bg-[#080818] flex items-center justify-center relative">
-            <div className="text-center z-10">
-              <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mb-2 mx-auto cursor-pointer hover:bg-white/20 transition-all" onClick={() => setIsPlaying(!isPlaying)}>
-                {isPlaying ? <Pause className="w-6 h-6 text-white" /> : <Play className="w-6 h-6 text-white ml-1" />}
+        <div className="glass rounded-2xl overflow-hidden lg:col-span-2 border border-white/[0.05]">
+          <div className="aspect-video bg-[#020205] flex flex-col items-center justify-center relative group">
+            <div className="relative z-10 text-center space-y-4">
+              <div 
+                className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-500 shadow-2xl ${isPlaying ? 'bg-indigo-500 shadow-indigo-500/40 scale-110' : 'bg-white/10 hover:bg-white/20'}`}
+                onClick={togglePlay}
+              >
+                {isPlaying ? <Pause className="w-8 h-8 text-white fill-current" /> : <Play className="w-8 h-8 text-white ml-2 fill-current" />}
               </div>
-              <p className="text-white/30 text-sm">Audio Playback</p>
+              <div>
+                <p className="text-white font-bold tracking-widest text-[10px] uppercase">Question {details[activeSegment]?.questionIndex! + 1}</p>
+                <p className="text-white/30 text-xs mt-1 max-w-xs mx-auto italic">"{details[activeSegment]?.questionText}"</p>
+              </div>
             </div>
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5" />
+            
+            {/* Visualizer Mock */}
+            <div className="absolute bottom-0 left-0 right-0 h-24 flex items-end justify-center gap-1 opacity-20">
+               {Array(40).fill(0).map((_, i) => (
+                 <div key={i} className="w-1 bg-indigo-400 rounded-t-full" style={{ height: isPlaying ? `${20 + Math.random() * 60}%` : '5%', transition: 'height 0.1s' }} />
+               ))}
+            </div>
+
+            {audioUrl && (
+              <audio 
+                ref={audioRef}
+                src={audioUrl} 
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                onEnded={() => setIsPlaying(false)}
+                autoPlay
+              />
+            )}
           </div>
 
-          {/* Controls */}
-          <div className="p-5 space-y-3">
-            <Progress value={progress} variant="gradient" size="sm" />
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-white/30 font-mono">4:32</span>
-              <div className="flex items-center gap-2">
-                <button className="p-2 rounded-lg hover:bg-white/[0.04] text-white/40 hover:text-white transition-all">
-                  <SkipBack className="w-4 h-4" />
+          <div className="p-6 bg-white/[0.02]">
+             <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
+                   <div className="flex justify-between text-[10px] font-black text-white/20 uppercase tracking-widest mb-2">
+                      <span>Live Playback</span>
+                      <span>{isPlaying ? 'Streaming' : 'Paused'}</span>
+                   </div>
+                   <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                      <div className={`h-full bg-indigo-500 transition-all duration-300 ${isPlaying ? 'w-1/2' : 'w-0'}`} />
+                   </div>
+                </div>
+                <button className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all shadow-xl">
+                   <Download className="w-5 h-5" />
                 </button>
-                <button
-                  onClick={() => setIsPlaying(!isPlaying)}
-                  className="p-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25 hover:scale-105 active:scale-95 transition-all"
-                >
-                  {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
-                </button>
-                <button className="p-2 rounded-lg hover:bg-white/[0.04] text-white/40 hover:text-white transition-all">
-                  <SkipForward className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="flex items-center gap-2">
-                <Volume2 className="w-4 h-4 text-white/30" />
-                <span className="text-xs text-white/30 font-mono">12:45</span>
-              </div>
-            </div>
-            <button className="w-full py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white hover:bg-white/[0.08] text-sm font-medium transition-all flex items-center justify-center gap-2">
-              <Download className="w-4 h-4" /> Download Recording
-            </button>
+             </div>
           </div>
         </div>
 
         {/* Transcript */}
         <div className="glass rounded-2xl p-5">
           <h2 className="text-base font-semibold text-white mb-4">Synced Transcript</h2>
-          <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
-            {transcript.map((line, i) => (
+          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+            {details.map((item, i) => (
               <div
                 key={i}
-                className={`p-3 rounded-xl text-sm transition-all cursor-pointer ${
+                className={`p-4 rounded-2xl text-sm transition-all cursor-pointer border ${
                   i === activeSegment
-                    ? 'bg-indigo-500/10 border border-indigo-500/20'
-                    : 'bg-white/[0.01] border border-transparent hover:bg-white/[0.03]'
-                } ${line.highlight ? 'border-l-2 border-l-amber-500' : ''}`}
-                onClick={() => setActiveSegment(i)}
+                    ? 'bg-indigo-500/10 border-indigo-500/30 ring-1 ring-indigo-500/20'
+                    : 'bg-white/[0.01] border-transparent hover:bg-white/[0.03] hover:border-white/10'
+                }`}
+                onClick={() => handleSegmentClick(i)}
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[11px] text-white/20 font-mono">{line.time}</span>
-                  <span className={`text-[11px] font-semibold ${line.speaker === 'AI' ? 'text-indigo-400' : 'text-cyan-400'}`}>
-                    {line.speaker}
-                  </span>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Question {item.questionIndex + 1}</span>
+                    <span className="w-1 h-1 rounded-full bg-white/10" />
+                    <span className="text-[10px] font-bold text-indigo-400">{item.sentiment}</span>
+                  </div>
+                  <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/5 px-2 py-0.5 rounded-lg border border-emerald-500/10">{Math.round(item.relevance_score * 100)}% Match</span>
                 </div>
-                <p className={`text-white/40 leading-relaxed ${line.highlight ? 'text-amber-300/60' : ''}`}>
-                  {line.text}
+                <p className={`text-sm leading-relaxed ${i === activeSegment ? 'text-white' : 'text-white/40'}`}>
+                  {item.transcript || "No speech detected for this segment."}
                 </p>
               </div>
             ))}
