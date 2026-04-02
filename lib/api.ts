@@ -148,3 +148,57 @@ export async function uploadAudio(filePath: string, sessionId: string, questionI
 
   return response.json();
 }
+export async function getClientMeetings(clientId?: string): Promise<any[]> {
+  const url = clientId ? `${BACKEND_URL}/api/client/meetings?client_id=${clientId}` : `${BACKEND_URL}/api/client/meetings`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Failed to fetch meetings');
+  return response.json();
+}
+
+export async function createClientMeeting(meetingData: any): Promise<any> {
+  const response = await fetch(`${BACKEND_URL}/api/client/meetings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(meetingData),
+  });
+  if (!response.ok) throw new Error('Failed to create meeting');
+  return response.json();
+}
+
+export async function getClientStats(clientId?: string): Promise<any> {
+  const url = clientId ? `${BACKEND_URL}/api/client/stats?client_id=${clientId}` : `${BACKEND_URL}/api/client/stats`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Failed to fetch stats');
+  return response.json();
+}
+
+export async function getClientCandidates(clientId?: string): Promise<any[]> {
+  const url = clientId ? `${BACKEND_URL}/api/client/candidates?client_id=${clientId}` : `${BACKEND_URL}/api/client/candidates`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Failed to fetch candidates');
+  return response.json();
+}
+
+export async function deleteClientMeeting(meetingId: string): Promise<any> {
+  const response = await fetch(`${BACKEND_URL}/api/client/meetings/${meetingId}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) throw new Error('Failed to delete meeting');
+  return response.json();
+}
+
+export async function updateMeetingStatus(meetingId: string, status: string): Promise<any> {
+  const response = await fetch(`${BACKEND_URL}/api/client/meetings/${meetingId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+  if (!response.ok) throw new Error('Failed to update meeting status');
+  return response.json();
+}
+
+export async function getMeetingQuestions(code: string): Promise<{ questions: Question[]; title: string; company: string }> {
+  const response = await fetch(`${BACKEND_URL}/api/client/meetings/by-code/${code}/questions`);
+  if (!response.ok) throw new Error('Failed to fetch meeting questions');
+  return response.json();
+}

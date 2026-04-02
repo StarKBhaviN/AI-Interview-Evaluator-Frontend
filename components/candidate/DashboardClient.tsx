@@ -43,6 +43,8 @@ const SCHEDULED_MEETINGS = [
   { id: '2', title: 'HR Screening', company: 'Creative Studio', date: 'April 2, 2026', time: '02:30 PM' },
 ]
 
+import { getClientMeetings } from '@/lib/api'
+
 export default function DashboardClient() {
   const router = useRouter()
   const [candidate, setCandidate] = useState<any>(null)
@@ -51,20 +53,39 @@ export default function DashboardClient() {
   const [meetingCode, setMeetingCode] = useState('')
   const [joinError, setJoinError] = useState('')
 
+  const [availableMeetings, setAvailableMeetings] = useState<any[]>([])
+  const [showPracticeConfirm, setShowPracticeConfirm] = useState(false)
+
   useEffect(() => {
     const storedCandidate = localStorage.getItem('candidateData')
+    const sessionUser = sessionStorage.getItem('currentUser')
     const storedHistory = localStorage.getItem('interviewHistory')
 
-    if (storedCandidate) {
-      setCandidate(JSON.parse(storedCandidate))
+    if (storedCandidate || sessionUser) {
+      const userData = sessionUser ? JSON.parse(sessionUser) : JSON.parse(storedCandidate!)
+      setCandidate(userData)
+      if (!storedCandidate) {
+        localStorage.setItem('candidateData', JSON.stringify(userData))
+      }
     } else {
-      router.push('/login')
+      router.push('/')
     }
 
     if (storedHistory) {
       setHistory(JSON.parse(storedHistory))
     }
-  }, [router])
+
+    // Fetch dynamic meetings
+    const fetchMeetings = async () => {
+      try {
+        const meetings = await getClientMeetings()
+        setAvailableMeetings(meetings)
+      } catch (err) {
+        console.error('Failed to fetch meetings', err)
+      }
+    }
+    fetchMeetings()
+  }, [])
 
   const handleLogout = () => {
     localStorage.removeItem('candidateData')
@@ -75,19 +96,23 @@ export default function DashboardClient() {
   }
 
   const handleStartPractice = () => {
-    // For practice, we can just use the registered position or a random one
+    setShowPracticeConfirm(true)
+  }
+
+  const confirmPractice = () => {
     router.push('/waiting-room')
   }
 
-  const handleApply = (roleTitle: string) => {
+  const handleApply = (meeting: any) => {
     if (candidate) {
-      const updatedCandidate = { ...candidate, position: roleTitle }
+      const updatedCandidate = { ...candidate, position: meeting.title }
       
       // 1. Update active session
       localStorage.setItem('candidateData', JSON.stringify(updatedCandidate))
+      localStorage.setItem('currentMeetingCode', meeting.code) // Track which meeting is active
       setCandidate(updatedCandidate)
 
-      // 2. Update global registered list
+      // 2. Update global registered list (legacy compatibility)
       const registered = localStorage.getItem('registeredCandidates')
       if (registered) {
         const users = JSON.parse(registered)
@@ -98,23 +123,24 @@ export default function DashboardClient() {
     router.push('/waiting-room')
   }
 
-  const handleJoinByCode = (e: React.FormEvent) => {
+  const handleJoinByCode = async (e: React.FormEvent) => {
     e.preventDefault()
     setJoinError('')
     
-    // Check global meetings from local storage
-    const globalMeetingsRaw = localStorage.getItem('globalMeetings')
-    if (globalMeetingsRaw) {
-      const globalMeetings = JSON.parse(globalMeetingsRaw)
+    try {
+      const globalMeetings = await getClientMeetings()
       const meeting = globalMeetings.find((m: any) => m.code.toUpperCase() === meetingCode.toUpperCase())
       
       if (meeting) {
         // Pre-fill position from meeting
         const updatedCandidate = { ...candidate, position: meeting.title }
         localStorage.setItem('candidateData', JSON.stringify(updatedCandidate))
+        localStorage.setItem('currentMeetingCode', meeting.code) // Store meeting code for session submission
         router.push('/waiting-room')
         return
       }
+    } catch (err) {
+      console.error('Failed to join meeting', err)
     }
     
     setJoinError('Invalid meeting code. Please check and try again.')
@@ -224,9 +250,9 @@ export default function DashboardClient() {
               </div>
 
               <div className="grid grid-cols-1 gap-4">
-                {AVAILABLE_ROLES.map((role) => (
+                {availableMeetings.map((meeting) => (
                   <div 
-                    key={role.id}
+                    key={meeting.id || meeting.code}
                     className="glass group p-5 rounded-2xl border border-white/[0.06] hover:border-indigo-500/30 transition-all flex items-center justify-between"
                   >
                     <div className="flex items-center gap-5">
@@ -234,24 +260,32 @@ export default function DashboardClient() {
                         <ArrowUpRight className="w-6 h-6" />
                       </div>
                       <div>
-                        <h4 className="font-bold text-white group-hover:text-indigo-300 transition-colors">{role.title}</h4>
+                        <div className="flex flex-col">
+                        <h4 className="font-bold text-white group-hover:text-indigo-400 transition-colors">{meeting.title}</h4>
+                        <span className="text-[10px] text-indigo-400/60 font-black uppercase tracking-widest">{meeting.company || 'Global Recruitment'}</span>
+                      </div>
                         <div className="flex items-center gap-3 mt-1">
-                          <span className="text-xs text-indigo-400/80 font-medium">{role.company}</span>
+                          <span className="text-xs text-indigo-400/80 font-medium">{meeting.company || 'TechFlow Systems'}</span>
                           <span className="w-1 h-1 rounded-full bg-white/10" />
-                          <span className="text-xs text-white/30">{role.department}</span>
+                          <span className="text-xs text-white/30">{meeting.department || 'Engineering'}</span>
                           <span className="w-1 h-1 rounded-full bg-white/10" />
-                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-white/[0.04] text-white/40 border border-white/[0.08]">{role.type}</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-white/[0.04] text-white/40 border border-white/[0.08]">{meeting.type || 'Full-time'}</span>
                         </div>
                       </div>
                     </div>
                     <button 
-                      onClick={() => handleApply(role.title)}
+                      onClick={() => handleApply(meeting)}
                       className="p-3 px-5 rounded-xl bg-white/[0.04] hover:bg-indigo-500 text-white/60 hover:text-white border border-white/[0.08] hover:border-indigo-400 font-bold text-xs transition-all opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0"
                     >
                       Apply Now
                     </button>
                   </div>
                 ))}
+                {availableMeetings.length === 0 && (
+                  <div className="text-center py-10 glass rounded-2xl border border-white/[0.04]">
+                    <p className="text-white/20 text-sm font-medium">No live opportunities at the moment.</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -518,6 +552,38 @@ export default function DashboardClient() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Practice Confirmation Modal */}
+      {showPracticeConfirm && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-2xl z-[70] flex items-center justify-center p-6">
+          <div className="glass max-w-md w-full rounded-[2.5rem] border border-white/[0.1] bg-[#0A0A0F] p-10 animate-scale-in text-center space-y-8">
+            <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center mx-auto border border-indigo-500/20 shadow-2xl shadow-indigo-500/10">
+              <Sparkles className="w-8 h-8 text-indigo-400" />
+            </div>
+            
+            <div className="space-y-4">
+              <h3 className="text-2xl font-bold text-white tracking-tight">Ready for a Practice Session?</h3>
+              <p className="text-white/40 text-sm leading-relaxed">
+                This will start a mock interview to help you prepare. Your performance will be recorded in your history, but won&apos;t be visible to employers.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 pt-4">
+              <button 
+                onClick={() => setShowPracticeConfirm(false)}
+                className="py-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] text-white/40 font-bold text-xs uppercase tracking-widest hover:bg-white/[0.06] hover:text-white transition-all"
+              >
+                Go Back
+              </button>
+              <button 
+                onClick={confirmPractice}
+                className="py-4 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 hover:shadow-indigo-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all"
+              >
+                Start Session
+              </button>
             </div>
           </div>
         </div>

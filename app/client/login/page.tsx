@@ -1,5 +1,11 @@
-import ClientLoginClient from '@/components/client/ClientLoginClient'
+"use client"
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function ClientLoginPage() {
-  return <ClientLoginClient />
+  const router = useRouter()
+  useEffect(() => {
+    router.push('/')
+  }, [router])
+  return null
 }

@@ -1,5 +1,5 @@
 "use client"
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Brain, Check } from 'lucide-react'
 
 import { analyzeAudio, AnalysisResponse, generateReport, submitSession, uploadAudio } from '@/lib/api'
@@ -17,9 +17,14 @@ export default function ProcessingClient() {
   const [done, setDone] = useState(false)
   const [results, setResults] = useState<AnalysisResponse[]>([])
   const [error, setError] = useState<string | null>(null)
+  const hasProcessed = useRef(false)
 
   useEffect(() => {
     const processInterviews = async () => {
+      // Guard against double-execution in React strict mode
+      if (hasProcessed.current) return
+      hasProcessed.current = true
+
       try {
         const storedPaths = localStorage.getItem('interviewAudioPaths')
         if (!storedPaths) {
@@ -88,6 +93,9 @@ export default function ProcessingClient() {
         }))
 
         const sessionId = Date.now().toString()
+        const meetingCode = localStorage.getItem('currentMeetingCode') || ''
+        const candidateEmail = candidateData.email || ''
+
         const historyItem = {
           id: sessionId,
           date: new Date().toISOString(),
@@ -96,7 +104,9 @@ export default function ProcessingClient() {
           questionsCount: allResults.length,
           warnings: warningLogs,
           details: detailedResults,
-          report: finalReport
+          report: finalReport,
+          meetingCode: meetingCode,
+          email: candidateEmail
         }
 
         // --- NEW: Upload Audio Files & Submit to Admin Backend ---

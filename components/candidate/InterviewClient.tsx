@@ -54,6 +54,28 @@ export default function InterviewClient() {
 
   const fetchQuestions = async () => {
     try {
+      const { getMeetingQuestions } = await import('@/lib/api')
+      const code = localStorage.getItem('currentMeetingCode')
+      
+      if (code) {
+        console.log(`[fetchQuestions] Found meeting code: ${code}. Fetching custom questions...`)
+        try {
+          const res = await getMeetingQuestions(code)
+          if (res.questions && res.questions.length > 0) {
+            console.log(`[fetchQuestions] Successfully loaded ${res.questions.length} custom questions.`)
+            setQuestions(res.questions)
+            setLoading(false)
+            return
+          }
+          console.log(`[fetchQuestions] No custom questions found for code ${code}. Falling back to defaults.`)
+        } catch (apiErr) {
+          console.warn(`[fetchQuestions] Failed to fetch questions from API for code ${code}:`, apiErr)
+        }
+      } else {
+        console.warn(`[fetchQuestions] No meeting code found in localStorage.`)
+      }
+
+      // Fallback to default questions from Tauri
       const data = await invoke<Question[]>('get_questions')
       setQuestions(data)
     } catch (err) {

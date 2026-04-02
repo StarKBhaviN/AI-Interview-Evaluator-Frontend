@@ -1,9 +1,11 @@
-import CandidateLoginClient from '@/components/candidate/CandidateLoginClient'
-import React from 'react'
+"use client"
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function CandidateLoginPage() {
-  // Server component: renders the client login form
-  return (
-    <CandidateLoginClient />
-  )
+  const router = useRouter()
+  useEffect(() => {
+    router.push('/')
+  }, [router])
+  return null
 }
