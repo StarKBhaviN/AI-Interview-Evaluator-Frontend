@@ -19,7 +19,7 @@ const links = [
   { href: "/candidates", label: "Candidates", icon: Users },
   { href: "/questions", label: "Questions", icon: FileText },
   { href: "/templates", label: "Templates", icon: ClipboardList },
-  { href: "/playback", label: "Playback", icon: PlayCircle },
+  // { href: "/playback", label: "Playback", icon: PlayCircle },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/model-performance", label: "Model", icon: Brain },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -55,17 +55,15 @@ export default function Sidebar() {
               key={href}
               href={`/admin${href}`}
               className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
-              ${
-                active
+              ${active
                   ? "bg-gradient-to-r from-indigo-500/20 to-purple-500/10 text-white border border-indigo-500/20 shadow-lg shadow-indigo-500/5"
                   : "text-white/50 hover:text-white/80 hover:bg-white/[0.04]"
-              }`}
+                }`}
             >
               <Icon
                 size={18}
-                className={`transition-colors duration-200 ${
-                  active ? "text-indigo-400" : "text-white/40 group-hover:text-white/60"
-                }`}
+                className={`transition-colors duration-200 ${active ? "text-indigo-400" : "text-white/40 group-hover:text-white/60"
+                  }`}
               />
               {label}
               {active && (

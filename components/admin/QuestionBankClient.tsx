@@ -150,18 +150,18 @@ export default function QuestionBankClient() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-white/40 mb-1.5 block">Category</label>
-                  <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white/60 focus:outline-none appearance-none bg-[#1a1a3e]">
-                    <option value="Technical">Technical</option>
-                    <option value="Behavioral">Behavioral</option>
-                    <option value="Situational">Situational</option>
+                  <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white/60 focus:outline-none appearance-none">
+                    <option value="Technical" className="text-black">Technical</option>
+                    <option value="Behavioral" className="text-black">Behavioral</option>
+                    <option value="Situational" className="text-black">Situational</option>
                   </select>
                 </div>
                 <div>
                   <label className="text-xs font-medium text-white/40 mb-1.5 block">Difficulty</label>
-                  <select value={form.difficulty} onChange={(e) => setForm({ ...form, difficulty: e.target.value })} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white/60 focus:outline-none appearance-none bg-[#1a1a3e]">
-                    <option value="Easy">Easy</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Hard">Hard</option>
+                  <select value={form.difficulty} onChange={(e) => setForm({ ...form, difficulty: e.target.value })} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white/60 focus:outline-none appearance-none">
+                    <option value="Easy" className="text-black">Easy</option>
+                    <option value="Medium" className="text-black">Medium</option>
+                    <option value="Hard" className="text-black">Hard</option>
                   </select>
                 </div>
               </div>

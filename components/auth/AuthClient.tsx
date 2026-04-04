@@ -25,21 +25,13 @@ export default function AuthClient() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    // Check if already logged in
-    const registered = localStorage.getItem('registeredUsers')
-    const currentUser = sessionStorage.getItem('currentUser')
-    if (currentUser) {
-      const user = JSON.parse(currentUser)
-      setUserStore(user)
-      redirectBasedOnRole(user.role)
-    }
-  }, [router, setUserStore])
+
 
   const redirectBasedOnRole = (role: string) => {
-    if (role === 'Admin') router.push('/admin/dashboard')
-    else if (role === 'Client') router.push('/client/dashboard')
-    else router.push('/dashboard')
+    const r = role?.toLowerCase()
+    if (r === 'admin') router.replace('/admin/dashboard')
+    else if (r === 'client') router.replace('/client/dashboard')
+    else router.replace('/dashboard')
   }
 
   const handleSignin = async (e: React.FormEvent) => {

@@ -17,6 +17,8 @@ type AppState = {
   user: User | null;
   setUser: (user: User | null) => void;
   logout: () => void;
+  hasHydrated: boolean;
+  setHasHydrated: (v: boolean) => void;
 };
 
 export const useAppStore = create<AppState>()(
@@ -31,14 +33,19 @@ export const useAppStore = create<AppState>()(
       logout: () => {
         // Clear all persistent states
         sessionStorage.clear();
-        localStorage.removeItem('candidateData'); // For backward compatibility
+        localStorage.removeItem('candidateData');
         localStorage.removeItem('clientData');
         set({ user: null, resumeFile: null });
       },
+      hasHydrated: false,
+      setHasHydrated: (v) => set({ hasHydrated: v }),
     }),
     {
       name: "ai-interview-auth",
       storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );

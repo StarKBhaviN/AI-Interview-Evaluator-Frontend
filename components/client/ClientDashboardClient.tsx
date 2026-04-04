@@ -19,9 +19,11 @@ import {
   ChevronUp,
   X,
   Trash2,
-  Lock
+  Lock,
+  Mail
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useAppStore } from '@/store/app.store'
 import { 
   getClientMeetings, 
   createClientMeeting, 
@@ -53,6 +55,7 @@ interface Candidate {
 
 export default function ClientDashboardClient() {
   const router = useRouter()
+  const { user: currentUser, logout } = useAppStore()
   
   // States
   const [meetings, setMeetings] = useState<Meeting[]>([])
@@ -97,21 +100,22 @@ export default function ClientDashboardClient() {
   })
 
   useEffect(() => {
-    const userStr = sessionStorage.getItem('currentUser')
-    if (userStr) {
-      const user = JSON.parse(userStr)
-      setClientInfo(user)
-      setNewCompany(user.company || '')
-      fetchData(user.id)
-    } else {
-      router.push('/')
+    if (currentUser) {
+      setClientInfo(currentUser)
+      setNewCompany(currentUser.company || '')
+      fetchData(currentUser.id)
     }
-  }, [])
+  }, [currentUser])
 
   const fetchData = async (clientId?: string) => {
+    const targetId = clientId || currentUser?.id
+    if (!targetId) {
+      setLoading(false)
+      return
+    }
+    
     try {
       setLoading(true)
-      const targetId = clientId || clientInfo?.id
       const [m, s, c] = await Promise.all([
         getClientMeetings(targetId),
         getClientStats(targetId),
@@ -137,8 +141,8 @@ export default function ClientDashboardClient() {
     const newMeeting = {
       id: Date.now().toString(),
       title: newTitle,
-      company: newCompany || clientInfo?.company || '',
-      clientId: clientInfo?.id || 'anonymous',
+      company: newCompany || currentUser?.company || '',
+      clientId: currentUser?.id || 'anonymous',
       code,
       date: newDate,
       time: newTime,
@@ -207,8 +211,8 @@ export default function ClientDashboardClient() {
   }
 
   const handleLogout = () => {
-    sessionStorage.clear()
-    router.push('/')
+    logout()
+    router.replace('/')
   }
 
   // Filtered Meetings
@@ -515,7 +519,8 @@ export default function ClientDashboardClient() {
                         )}
                       </div>
                     </th>
-                    <th className="py-4 text-[10px] font-black uppercase tracking-widest text-white/20 text-right">Status</th>
+                    <th className="py-4 text-[10px] font-black uppercase tracking-widest text-white/20">Status</th>
+                    <th className="py-4 text-[10px] font-black uppercase tracking-widest text-white/20 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.03]">
@@ -546,10 +551,19 @@ export default function ClientDashboardClient() {
                           <span className="text-xs font-black text-white">{cand.score}%</span>
                         </div>
                       </td>
-                      <td className="py-5 text-right">
+                      <td className="py-5">
                         <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-wider border border-emerald-500/20">
                           {cand.status}
                         </span>
+                      </td>
+                      <td className="py-5 text-right">
+                        <a 
+                          href={`mailto:${cand.email}?subject=Interview Outcome - ${cand.interviewName}&body=Hi ${cand.name},%0D%0A%0D%0AWe wanted to follow up regarding your interview for the ${cand.interviewName} position...`}
+                          className="inline-flex items-center gap-2 p-2 px-3 rounded-xl bg-white/[0.03] border border-white/[0.08] hover:border-emerald-500/30 hover:bg-emerald-500/10 text-white/40 hover:text-emerald-400 transition-all font-bold text-[10px] uppercase tracking-widest"
+                        >
+                          <Mail className="w-3.5 h-3.5" />
+                          Mail
+                        </a>
                       </td>
                     </tr>
                   ))}
@@ -572,7 +586,7 @@ export default function ClientDashboardClient() {
                   <div className="flex items-center gap-2 mt-2">
                     <div className={`w-2 h-2 rounded-full ${!showQuestionsStep ? 'bg-emerald-400' : 'bg-white/20'}`} />
                     <div className={`w-2 h-2 rounded-full ${showQuestionsStep ? 'bg-emerald-400' : 'bg-white/20'}`} />
-                    <span className="text-[10px] text-white/30 ml-1">{showQuestionsStep ? 'Step 2 of 2' : 'Step 1 of 2'}</span>
+                    <span className="text-[10px] text-white/10 ml-1">{showQuestionsStep ? 'Step 2 of 2' : 'Step 1 of 2'}</span>
                   </div>
                 </div>
                 <button 
@@ -618,12 +632,12 @@ export default function ClientDashboardClient() {
                         <select 
                           value={newJobType}
                           onChange={(e) => setNewJobType(e.target.value)}
-                          className="w-full p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] focus:border-emerald-500 outline-none transition-all text-sm [color-scheme:dark]"
+                          className="w-full p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] focus:border-emerald-500 outline-none transition-all text-sm"
                         >
-                          <option value="Full-time">Full-time</option>
-                          <option value="Part-time">Part-time</option>
-                          <option value="Internship">Internship</option>
-                          <option value="Contract">Contract</option>
+                          <option value="Full-time" className="text-black">Full-time</option>
+                          <option value="Part-time" className="text-black">Part-time</option>
+                          <option value="Internship" className="text-black">Internship</option>
+                          <option value="Contract" className="text-black">Contract</option>
                         </select>
                       </div>
                       <div className="space-y-2">
@@ -631,11 +645,11 @@ export default function ClientDashboardClient() {
                         <select 
                           value={newLocation}
                           onChange={(e) => setNewLocation(e.target.value)}
-                          className="w-full p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] focus:border-emerald-500 outline-none transition-all text-sm [color-scheme:dark]"
+                          className="w-full p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] focus:border-emerald-500 outline-none transition-all text-sm"
                         >
-                          <option value="Remote">Remote</option>
-                          <option value="On-site">On-site</option>
-                          <option value="Hybrid">Hybrid</option>
+                          <option value="Remote" className="text-black">Remote</option>
+                          <option value="On-site" className="text-black">On-site</option>
+                          <option value="Hybrid" className="text-black">Hybrid</option>
                         </select>
                       </div>
                     </div>
@@ -658,7 +672,7 @@ export default function ClientDashboardClient() {
                           required
                           value={newDate}
                           onChange={(e) => setNewDate(e.target.value)}
-                          className="w-full p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] focus:border-emerald-500 outline-none transition-all text-sm [color-scheme:dark]"
+                          className="w-full p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] focus:border-emerald-500 outline-none transition-all text-sm"
                         />
                       </div>
                       <div className="space-y-2">
@@ -668,7 +682,7 @@ export default function ClientDashboardClient() {
                           required
                           value={newTime}
                           onChange={(e) => setNewTime(e.target.value)}
-                          className="w-full p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] focus:border-emerald-500 outline-none transition-all text-sm [color-scheme:dark]"
+                          className="w-full p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] focus:border-emerald-500 outline-none transition-all text-sm"
                         />
                       </div>
                     </div>
@@ -713,15 +727,15 @@ export default function ClientDashboardClient() {
                         <select
                           value={newQDiff}
                           onChange={(e) => setNewQDiff(e.target.value)}
-                          className={`p-3 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs outline-none [color-scheme:dark] ${
+                          className={`p-3 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs outline-none ${
                             newQDiff === 'Easy' ? 'text-emerald-400' :
                             newQDiff === 'Hard' ? 'text-red-400' :
                             'text-amber-400'
                           }`}
                         >
-                          <option value="Easy" className="text-emerald-400">Easy</option>
-                          <option value="Medium" className="text-amber-400">Medium</option>
-                          <option value="Hard" className="text-red-400">Hard</option>
+                          <option value="Easy" className="text-black">Easy</option>
+                          <option value="Medium" className="text-black">Medium</option>
+                          <option value="Hard" className="text-black">Hard</option>
                         </select>
                         <button
                           type="button"

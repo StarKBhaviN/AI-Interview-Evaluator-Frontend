@@ -114,10 +114,10 @@ export default function TemplateManagerClient() {
               <div>
                 <label className="text-xs font-medium text-white/40 mb-1.5 block">Difficulty</label>
                 <select value={form.difficulty} onChange={(e) => setForm({ ...form, difficulty: e.target.value })} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white/60 focus:outline-none appearance-none">
-                  <option value="Easy" className="bg-[#1a1a3e]">Easy</option>
-                  <option value="Medium" className="bg-[#1a1a3e]">Medium</option>
-                  <option value="Hard" className="bg-[#1a1a3e]">Hard</option>
-                  <option value="Mixed" className="bg-[#1a1a3e]">Mixed</option>
+                  <option value="Easy" className="text-black">Easy</option>
+                  <option value="Medium" className="text-black">Medium</option>
+                  <option value="Hard" className="text-black">Hard</option>
+                  <option value="Mixed" className="text-black">Mixed</option>
                 </select>
               </div>
               <button onClick={handleCreate} className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold text-sm shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all">

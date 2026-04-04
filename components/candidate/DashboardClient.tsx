@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { convertFileSrc } from '@tauri-apps/api/core'
+import { useAppStore } from '@/store/app.store'
 
 interface InterviewHistoryItem {
   id: string
@@ -47,6 +48,7 @@ import { getClientMeetings } from '@/lib/api'
 
 export default function DashboardClient() {
   const router = useRouter()
+  const { user: currentUser, logout } = useAppStore()
   const [candidate, setCandidate] = useState<any>(null)
   const [history, setHistory] = useState<InterviewHistoryItem[]>([])
   const [selectedHistory, setSelectedHistory] = useState<InterviewHistoryItem | null>(null)
@@ -55,20 +57,16 @@ export default function DashboardClient() {
 
   const [availableMeetings, setAvailableMeetings] = useState<any[]>([])
   const [showPracticeConfirm, setShowPracticeConfirm] = useState(false)
+  
+  // History Pagination
+  const [historyPage, setHistoryPage] = useState(1)
+  const itemsPerPage = 6
 
   useEffect(() => {
-    const storedCandidate = localStorage.getItem('candidateData')
-    const sessionUser = sessionStorage.getItem('currentUser')
     const storedHistory = localStorage.getItem('interviewHistory')
 
-    if (storedCandidate || sessionUser) {
-      const userData = sessionUser ? JSON.parse(sessionUser) : JSON.parse(storedCandidate!)
-      setCandidate(userData)
-      if (!storedCandidate) {
-        localStorage.setItem('candidateData', JSON.stringify(userData))
-      }
-    } else {
-      router.push('/')
+    if (currentUser) {
+      setCandidate(currentUser)
     }
 
     if (storedHistory) {
@@ -85,14 +83,11 @@ export default function DashboardClient() {
       }
     }
     fetchMeetings()
-  }, [])
+  }, [currentUser])
 
   const handleLogout = () => {
-    localStorage.removeItem('candidateData')
-    localStorage.removeItem('interviewHistory')
-    localStorage.removeItem('interviewResults')
-    localStorage.removeItem('interviewQuestions')
-    router.push('/')
+    logout()
+    router.replace('/')
   }
 
   const handleStartPractice = () => {
@@ -145,6 +140,9 @@ export default function DashboardClient() {
     
     setJoinError('Invalid meeting code. Please check and try again.')
   }
+
+  const paginatedHistory = history.slice((historyPage - 1) * itemsPerPage, historyPage * itemsPerPage)
+  const totalPages = Math.ceil(history.length / itemsPerPage)
 
   if (!candidate) return null
 
@@ -244,49 +242,78 @@ export default function DashboardClient() {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold">Available Opportunities</h3>
-                    <p className="text-white/30 text-xs">Interviews posted by official clients</p>
+                    <p className="text-white/30 text-xs text-balance">The latest interviews curated for your profile</p>
                   </div>
                 </div>
+                <button 
+                  onClick={() => router.push('/interviews')}
+                  className="p-2 px-4 rounded-xl hover:bg-white/[0.05] text-indigo-400 text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 border border-indigo-500/10 hover:border-indigo-500/30"
+                >
+                  View All
+                  <ChevronRight className="w-3 h-3" />
+                </button>
               </div>
 
-              <div className="grid grid-cols-1 gap-4">
-                {availableMeetings.map((meeting) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {availableMeetings.slice(0, 8).map((meeting) => (
                   <div 
                     key={meeting.id || meeting.code}
-                    className="glass group p-5 rounded-2xl border border-white/[0.06] hover:border-indigo-500/30 transition-all flex items-center justify-between"
+                    className="glass group p-6 rounded-3xl border border-white/[0.06] hover:border-indigo-500/30 transition-all flex flex-col justify-between h-full bg-gradient-to-br from-white/[0.02] to-transparent"
                   >
-                    <div className="flex items-center gap-5">
-                      <div className="w-12 h-12 rounded-xl bg-white/[0.03] flex items-center justify-center border border-white/[0.08] text-white/20 group-hover:text-indigo-400 transition-colors">
-                        <ArrowUpRight className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <div className="flex flex-col">
-                        <h4 className="font-bold text-white group-hover:text-indigo-400 transition-colors">{meeting.title}</h4>
-                        <span className="text-[10px] text-indigo-400/60 font-black uppercase tracking-widest">{meeting.company || 'Global Recruitment'}</span>
-                      </div>
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className="text-xs text-indigo-400/80 font-medium">{meeting.company || 'TechFlow Systems'}</span>
-                          <span className="w-1 h-1 rounded-full bg-white/10" />
-                          <span className="text-xs text-white/30">{meeting.department || 'Engineering'}</span>
-                          <span className="w-1 h-1 rounded-full bg-white/10" />
-                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-white/[0.04] text-white/40 border border-white/[0.08]">{meeting.type || 'Full-time'}</span>
+                    <div className="space-y-4">
+                      <div className="flex items-start justify-between">
+                        <div className="w-12 h-12 rounded-2xl bg-white/[0.03] flex items-center justify-center border border-white/[0.08] text-white/20 group-hover:text-indigo-400 group-hover:scale-110 group-hover:border-indigo-500/20 transition-all duration-500">
+                          <ArrowUpRight className="w-6 h-6" />
                         </div>
+                        <span className="text-[9px] px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-black uppercase tracking-widest">
+                          {meeting.jobType || 'Full-time'}
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <h4 className="font-bold text-lg text-white group-hover:text-indigo-400 transition-colors line-clamp-1">{meeting.title}</h4>
+                        <p className="text-xs text-indigo-400/80 font-black uppercase tracking-[0.1em]">{meeting.company || 'Global Recruitment'}</p>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 pt-2">
+                        <span className="flex items-center gap-1.5 text-[10px] text-white/30 bg-white/[0.03] px-2.5 py-1 rounded-lg border border-white/[0.06]">
+                          <Briefcase className="w-3 h-3" /> {meeting.department || 'Engineering'}
+                        </span>
+                        <span className="flex items-center gap-1.5 text-[10px] text-white/30 bg-white/[0.03] px-2.5 py-1 rounded-lg border border-white/[0.06]">
+                          <Sparkles className="w-3 h-3" /> {meeting.location || 'Remote'}
+                        </span>
                       </div>
                     </div>
+
                     <button 
                       onClick={() => handleApply(meeting)}
-                      className="p-3 px-5 rounded-xl bg-white/[0.04] hover:bg-indigo-500 text-white/60 hover:text-white border border-white/[0.08] hover:border-indigo-400 font-bold text-xs transition-all opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0"
+                      className="w-full mt-6 py-3.5 rounded-2xl bg-indigo-500 hover:bg-white text-white hover:text-black font-black text-[10px] uppercase tracking-[0.2em] transition-all transform active:scale-95 shadow-xl shadow-indigo-500/10"
                     >
-                      Apply Now
+                      Instant Apply
                     </button>
                   </div>
                 ))}
                 {availableMeetings.length === 0 && (
-                  <div className="text-center py-10 glass rounded-2xl border border-white/[0.04]">
-                    <p className="text-white/20 text-sm font-medium">No live opportunities at the moment.</p>
+                  <div className="col-span-full text-center py-12 glass rounded-3xl border border-white/[0.04] bg-white/[0.01]">
+                    <div className="w-16 h-16 rounded-2xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-center mx-auto mb-4 opacity-20">
+                      <Briefcase className="w-8 h-8" />
+                    </div>
+                    <p className="text-white/20 text-sm font-bold uppercase tracking-widest">No matching roles found.</p>
                   </div>
                 )}
               </div>
+              
+              {availableMeetings.length > 8 && (
+                <div className="flex justify-center pt-2">
+                  <button 
+                    onClick={() => router.push('/interviews')}
+                    className="group flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/20 hover:text-indigo-400 transition-all font-mono"
+                  >
+                    + Explore {availableMeetings.length - 8} more opportunities
+                    <ChevronRight className="w-3 h-3 translate-x-0 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* History Table */}
@@ -303,17 +330,17 @@ export default function DashboardClient() {
                 </div>
               </div>
 
-              <div className="glass rounded-3xl border border-white/[0.06] overflow-hidden">
+              <div className="glass rounded-[2rem] border border-white/[0.06] overflow-hidden bg-white/[0.01]">
                 <table className="w-full text-left">
                   <thead>
                     <tr className="border-b border-white/[0.06] bg-white/[0.02]">
-                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-white/30">Date</th>
-                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-white/30">Position</th>
-                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-white/30 text-right">Score</th>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Date</th>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Position</th>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white/30 text-right">Score</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/[0.04]">
-                    {history.length > 0 ? history.map((item: InterviewHistoryItem) => (
+                    {paginatedHistory.length > 0 ? paginatedHistory.map((item: InterviewHistoryItem) => (
                       <tr 
                         key={item.id} 
                         onClick={() => setSelectedHistory(item)}
@@ -322,18 +349,18 @@ export default function DashboardClient() {
                         <td className="px-6 py-5">
                           <div className="flex items-center gap-3">
                             <Calendar className="w-4 h-4 text-white/20" />
-                            <span className="text-sm font-medium text-white/70">
+                            <span className="text-xs font-bold text-white/70 tabular-nums">
                               {new Date(item.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                             </span>
                           </div>
                         </td>
                         <td className="px-6 py-5">
-                          <span className="text-sm font-semibold text-white/90">{item.position}</span>
+                          <span className="text-xs font-black text-white/90 uppercase tracking-wider">{item.position}</span>
                         </td>
                         <td className="px-6 py-5 text-right">
                           <div className="inline-flex items-center gap-2">
-                            <span className={`text-lg font-bold tabular-nums ${item.score >= 80 ? 'text-emerald-400' : item.score >= 60 ? 'text-indigo-400' : 'text-amber-400'}`}>
-                              {item.score}
+                            <span className={`text-lg font-black tabular-nums italic ${item.score >= 80 ? 'text-emerald-400' : item.score >= 60 ? 'text-indigo-400' : 'text-amber-400'}`}>
+                              {item.score}%
                             </span>
                             <ChevronRight className="w-4 h-4 text-white/10 group-hover:text-white/40 transition-colors" />
                           </div>
@@ -346,13 +373,36 @@ export default function DashboardClient() {
                             <div className="w-12 h-12 rounded-2xl bg-white/[0.02] flex items-center justify-center border border-white/[0.06]">
                               <FileText className="w-6 h-6 text-white/10" />
                             </div>
-                            <p className="text-white/20 text-xs font-medium">No interview history available</p>
+                            <p className="text-white/20 text-[10px] font-black uppercase tracking-widest">No interview history available</p>
                           </div>
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
+                
+                {/* Pagination Controls */}
+                {history.length > itemsPerPage && (
+                  <div className="p-4 border-t border-white/[0.06] bg-white/[0.02] flex items-center justify-between bg-black/20">
+                    <button 
+                      onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
+                      disabled={historyPage === 1}
+                      className="p-2 px-4 rounded-xl border border-white/[0.08] text-[9px] font-black uppercase tracking-widest hover:bg-white/[0.05] disabled:opacity-20 transition-all"
+                    >
+                      Prev
+                    </button>
+                    <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">
+                      Page {historyPage} of {totalPages}
+                    </span>
+                    <button 
+                      onClick={() => setHistoryPage(p => Math.min(totalPages, p + 1))}
+                      disabled={historyPage === totalPages}
+                      className="p-2 px-4 rounded-xl border border-white/[0.08] text-[9px] font-black uppercase tracking-widest hover:bg-white/[0.05] disabled:opacity-20 transition-all"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -591,4 +641,3 @@ export default function DashboardClient() {
     </div>
   )
 }
-

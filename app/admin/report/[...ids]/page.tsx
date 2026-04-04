@@ -1,13 +1,12 @@
 import React from 'react'
 import CandidateReportClient from '@/components/admin/CandidateReportClient'
 
-export const dynamicParams = true
-
 export async function generateStaticParams() {
-  return []
+  return [{ ids: ['all'] }]
 }
 
-export default async function DynamicCandidateReportPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+export default async function DynamicCandidateReportPage({ params }: { params: Promise<{ ids: string[] }> }) {
+  const { ids } = await params
+  const id = ids?.[0]
   return <CandidateReportClient sessionId={id} />
 }
