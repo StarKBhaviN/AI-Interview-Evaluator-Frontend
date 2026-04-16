@@ -1,4 +1,29 @@
-const BACKEND_URL = 'http://localhost:8000';
+import { getEnv } from './env';
+export let BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+async function initBackendUrl() {
+  const url = await getEnv("API_URL");
+  const nextUrl = await getEnv("NEXT_PUBLIC_API_URL");
+  if (url || nextUrl) {
+    BACKEND_URL = url || nextUrl || BACKEND_URL;
+    console.log(`[API] Backend URL updated to: ${BACKEND_URL}`);
+  }
+}
+
+// Start initialization immediately
+if (typeof window !== 'undefined') {
+  initBackendUrl().catch(console.error);
+}
+
+// Keep a function version for internal use to ensure we have the latest and can await if needed
+async function getBaseUrl() {
+  if (BACKEND_URL !== 'http://localhost:8000' && BACKEND_URL !== process.env.NEXT_PUBLIC_API_URL) {
+    return BACKEND_URL;
+  }
+  const url = await getEnv("API_URL");
+  const nextUrl = await getEnv("NEXT_PUBLIC_API_URL");
+  return url || nextUrl || BACKEND_URL;
+}
 
 export interface AnalysisResponse {
   transcript: string;
@@ -33,8 +58,9 @@ export async function analyzeAudio(filePath: string, question?: string, skills?:
   if (question) formData.append('question', question);
   if (skills) formData.append('skills', skills.join(','));
 
-  console.log(`[analyzeAudio] Sending request to backend...`);
-  const response = await fetch(`${BACKEND_URL}/analyze-audio`, {
+  const baseUrl = await getBaseUrl();
+  console.log(`[analyzeAudio] Sending request to backend at ${baseUrl}...`);
+  const response = await fetch(`${baseUrl}/analyze-audio`, {
     method: 'POST',
     body: formData,
   });
@@ -54,7 +80,8 @@ export async function parseResume(file: File): Promise<{ skills: string[] }> {
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await fetch(`${BACKEND_URL}/api/parse-resume`, {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/parse-resume`, {
     method: 'POST',
     body: formData,
   });
@@ -77,7 +104,8 @@ export interface InterviewReport {
 }
 
 export async function generateReport(results: AnalysisResponse[], warnings: any[]): Promise<InterviewReport> {
-  const response = await fetch(`${BACKEND_URL}/generate-report`, {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/generate-report`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ results, warnings }),
@@ -100,7 +128,8 @@ export interface Question {
 }
 
 export async function generateInterviewQuestions(skills: string[], position: string): Promise<Question[]> {
-  const response = await fetch(`${BACKEND_URL}/api/generate-questions`, {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/generate-questions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ skills, position }),
@@ -114,7 +143,8 @@ export async function generateInterviewQuestions(skills: string[], position: str
 }
 
 export async function submitSession(sessionData: any): Promise<{ status: string; session_id: string }> {
-  const response = await fetch(`${BACKEND_URL}/api/admin/sessions/submit`, {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/admin/sessions/submit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(sessionData),
@@ -137,7 +167,8 @@ export async function uploadAudio(filePath: string, sessionId: string, questionI
   formData.append('session_id', sessionId);
   formData.append('question_index', questionIndex.toString());
 
-  const response = await fetch(`${BACKEND_URL}/api/admin/audio/upload`, {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/admin/audio/upload`, {
     method: 'POST',
     body: formData,
   });
@@ -149,14 +180,16 @@ export async function uploadAudio(filePath: string, sessionId: string, questionI
   return response.json();
 }
 export async function getClientMeetings(clientId?: string): Promise<any[]> {
-  const url = clientId ? `${BACKEND_URL}/api/client/meetings?client_id=${clientId}` : `${BACKEND_URL}/api/client/meetings`;
+  const baseUrl = await getBaseUrl();
+  const url = clientId ? `${baseUrl}/api/client/meetings?client_id=${clientId}` : `${baseUrl}/api/client/meetings`;
   const response = await fetch(url);
   if (!response.ok) throw new Error('Failed to fetch meetings');
   return response.json();
 }
 
 export async function createClientMeeting(meetingData: any): Promise<any> {
-  const response = await fetch(`${BACKEND_URL}/api/client/meetings`, {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/client/meetings`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(meetingData),
@@ -166,21 +199,24 @@ export async function createClientMeeting(meetingData: any): Promise<any> {
 }
 
 export async function getClientStats(clientId?: string): Promise<any> {
-  const url = clientId ? `${BACKEND_URL}/api/client/stats?client_id=${clientId}` : `${BACKEND_URL}/api/client/stats`;
+  const baseUrl = await getBaseUrl();
+  const url = clientId ? `${baseUrl}/api/client/stats?client_id=${clientId}` : `${baseUrl}/api/client/stats`;
   const response = await fetch(url);
   if (!response.ok) throw new Error('Failed to fetch stats');
   return response.json();
 }
 
 export async function getClientCandidates(clientId?: string): Promise<any[]> {
-  const url = clientId ? `${BACKEND_URL}/api/client/candidates?client_id=${clientId}` : `${BACKEND_URL}/api/client/candidates`;
+  const baseUrl = await getBaseUrl();
+  const url = clientId ? `${baseUrl}/api/client/candidates?client_id=${clientId}` : `${baseUrl}/api/client/candidates`;
   const response = await fetch(url);
   if (!response.ok) throw new Error('Failed to fetch candidates');
   return response.json();
 }
 
 export async function deleteClientMeeting(meetingId: string): Promise<any> {
-  const response = await fetch(`${BACKEND_URL}/api/client/meetings/${meetingId}`, {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/client/meetings/${meetingId}`, {
     method: 'DELETE',
   });
   if (!response.ok) throw new Error('Failed to delete meeting');
@@ -188,7 +224,8 @@ export async function deleteClientMeeting(meetingId: string): Promise<any> {
 }
 
 export async function updateMeetingStatus(meetingId: string, status: string): Promise<any> {
-  const response = await fetch(`${BACKEND_URL}/api/client/meetings/${meetingId}`, {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/client/meetings/${meetingId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
@@ -198,7 +235,8 @@ export async function updateMeetingStatus(meetingId: string, status: string): Pr
 }
 
 export async function getMeetingQuestions(code: string): Promise<{ questions: Question[]; title: string; company: string }> {
-  const response = await fetch(`${BACKEND_URL}/api/client/meetings/by-code/${code}/questions`);
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/client/meetings/by-code/${code}/questions`);
   if (!response.ok) throw new Error('Failed to fetch meeting questions');
   return response.json();
 }

@@ -6,6 +6,7 @@ import { Label } from '../ui/label'
 import { Upload, User, Mail, Briefcase, FileText, Brain, ChevronDown, ShieldCheck } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/store/app.store'
+import { BACKEND_URL } from '@/lib/api'
 
 export default function AuthClient() {
   const router = useRouter()
@@ -40,7 +41,7 @@ export default function AuthClient() {
     setError('')
     
     try {
-      const response = await fetch('http://localhost:8000/api/auth/signin', {
+      const response = await fetch(`${BACKEND_URL}/api/auth/signin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: formData.email, password: formData.password })
@@ -76,7 +77,7 @@ export default function AuthClient() {
     setError('')
     
     try {
-      const response = await fetch('http://localhost:8000/api/auth/signup', {
+      const response = await fetch(`${BACKEND_URL}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

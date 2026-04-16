@@ -24,6 +24,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/store/app.store'
 import AIModelCenter from './AIModelCenter'
+import { BACKEND_URL } from '@/lib/api'
 
 export default function AdminDashboardClient() {
   const router = useRouter()
@@ -50,10 +51,10 @@ export default function AdminDashboardClient() {
     try {
       setLoading(true)
       const [statsRes, sessRes, clientRes, candRes] = await Promise.all([
-        fetch('http://localhost:8000/api/admin/stats'),
-        fetch('http://localhost:8000/api/admin/sessions'),
-        fetch('http://localhost:8000/api/admin/clients'),
-        fetch('http://localhost:8000/api/admin/candidates')
+        fetch(`${BACKEND_URL}/api/admin/stats`),
+        fetch(`${BACKEND_URL}/api/admin/sessions`),
+        fetch(`${BACKEND_URL}/api/admin/clients`),
+        fetch(`${BACKEND_URL}/api/admin/candidates`)
       ])
       
       const statsData = await statsRes.json()
@@ -84,7 +85,7 @@ export default function AdminDashboardClient() {
 
     try {
       setTerminatingId(userId)
-      const res = await fetch(`http://localhost:8000/api/admin/users/${userId}`, {
+      const res = await fetch(`${BACKEND_URL}/api/admin/users/${userId}`, {
         method: 'DELETE'
       })
       if (res.ok) {
@@ -110,7 +111,7 @@ export default function AdminDashboardClient() {
   const handleExport = async () => {
     try {
       setIsExporting(true)
-      const response = await fetch('http://localhost:8000/api/admin/export')
+      const response = await fetch(`${BACKEND_URL}/api/admin/export`)
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')

@@ -10,6 +10,7 @@ import {
   BarChart2, 
   RefreshCw 
 } from 'lucide-react'
+import { BACKEND_URL } from '@/lib/api'
 
 interface AIStatus {
   relevance: {
@@ -30,7 +31,7 @@ export default function AIModelCenter() {
 
   const fetchStatus = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/ai/status')
+      const res = await fetch(`${BACKEND_URL}/api/ai/status`)
       const data = await res.json()
       setStatus(data)
     } catch (err) {
@@ -48,7 +49,7 @@ export default function AIModelCenter() {
     if (training) return
     setTraining(true)
     try {
-      await fetch('http://localhost:8000/api/ai/train-relevance', { method: 'POST' })
+      await fetch(`${BACKEND_URL}/api/ai/train-relevance`, { method: 'POST' })
       alert('Training started in background. It will take a few minutes.')
     } catch (err) {
       alert('Failed to start training.')

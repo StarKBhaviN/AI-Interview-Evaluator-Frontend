@@ -15,6 +15,7 @@ const difficultyColors: Record<string, string> = {
   Medium: 'bg-amber-500/15 text-amber-400 border-amber-500/20',
   Hard: 'bg-red-500/15 text-red-400 border-red-500/20',
 }
+import { BACKEND_URL } from '@/lib/api'
 
 import { invoke } from '@tauri-apps/api/core'
 
@@ -140,7 +141,7 @@ export default function InterviewClient() {
         formData.append('mic_muted', micMutedRef.current.toString())
 
         try {
-          const response = await fetch('http://localhost:8000/check-cheating', {
+          const response = await fetch(`${BACKEND_URL}/check-cheating`, {
             method: 'POST',
             body: formData,
           })

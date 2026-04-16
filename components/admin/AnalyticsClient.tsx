@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, Radar, LineChart, Line } from 'recharts'
 import { Activity, Clock, Target, TrendingUp, RefreshCw } from 'lucide-react'
+import { BACKEND_URL } from '@/lib/api'
 
 const COLORS = ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ec4899']
 
@@ -13,7 +14,7 @@ export default function AnalyticsClient() {
     const fetchAnalytics = async () => {
       try {
         setLoading(true)
-        const res = await fetch('http://localhost:8000/api/admin/analytics')
+        const res = await fetch(`${BACKEND_URL}/api/admin/analytics`)
         const json = await res.json()
         setData(json)
       } catch (err) {

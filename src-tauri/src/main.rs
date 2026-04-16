@@ -186,6 +186,29 @@ fn check_hardware() -> Vec<HardwareStatus> {
     results
 }
 
+use dotenv_codegen::dotenv;
+
+#[command]
+fn get_env(name: &str) -> String {
+    // 1. Try runtime environment first
+    let runtime_val = std::env::var(name).unwrap_or_default();
+    if !runtime_val.is_empty() {
+        return runtime_val;
+    }
+
+    // 2. Try baked-in variables from .env during compile time
+    // This uses the dotenv_codegen crate to pull variables from .env info the binary
+    match name {
+        "NEXT_PUBLIC_API_URL" | "API_URL" => {
+            // We use the macro directly. Note: This will look for .env in the workspace root.
+            // If the variable is missing from .env during build, this line would cause a compile error.
+            // This is exactly what we want for a production build to ensure the URL is set.
+            dotenv!("NEXT_PUBLIC_API_URL").to_string()
+        },
+        _ => "".to_string()
+    }
+}
+
 #[command]
 fn get_candidates(app: AppHandle) -> Vec<Candidate> {
     let path = get_data_dir(&app).join("candidates.json");
@@ -283,6 +306,7 @@ fn stop_audio_capture(state: tauri::State<AppState>) -> Result<String, String> {
 }
 
 fn main() {
+    dotenv::dotenv().ok();
     let audio_tx = spawn_audio_thread();
     
     tauri::Builder::default()
@@ -297,6 +321,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_log::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
+            get_env,
             get_system_info,
             check_hardware,
             get_candidates,
