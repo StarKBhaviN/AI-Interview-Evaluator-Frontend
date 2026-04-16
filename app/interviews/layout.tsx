@@ -2,5 +2,5 @@
 import AuthGuard from '@/components/auth/AuthGuard';
 
 export default function InterviewsLayout({ children }: { children: React.ReactNode }) {
-  return <AuthGuard allowedRoles={['Candidate']}>{children}</AuthGuard>;
+  return <AuthGuard requiredRole="Candidate">{children}</AuthGuard>;
 }
