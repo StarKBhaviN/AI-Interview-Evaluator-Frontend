@@ -30,8 +30,7 @@ fn spawn_audio_thread() -> std::sync::mpsc::Sender<AudioMessage> {
     std::thread::spawn(move || {
         let host = cpal::default_host();
         let device = host.default_input_device().expect("No input device found");
-        #[allow(unused_assignments)]
-        let mut stream: Option<cpal::Stream> = None;
+        let mut _active_stream: Option<cpal::Stream> = None;
 
         while let Ok(msg) = rx.recv() {
             match msg {
@@ -55,10 +54,10 @@ fn spawn_audio_thread() -> std::sync::mpsc::Sender<AudioMessage> {
                     ).unwrap();
 
                     new_stream.play().unwrap();
-                    stream = Some(new_stream);
+                    _active_stream = Some(new_stream);
                 }
                 AudioMessage::Stop => {
-                    stream = None; // Dropping the stream stops recording
+                    _active_stream = None; // Dropping the stream stops recording
                 }
             }
         }
@@ -186,24 +185,22 @@ fn check_hardware() -> Vec<HardwareStatus> {
     results
 }
 
-use dotenv_codegen::dotenv;
-
 #[command]
 fn get_env(name: &str) -> String {
-    // 1. Try runtime environment first
-    let runtime_val = std::env::var(name).unwrap_or_default();
-    if !runtime_val.is_empty() {
-        return runtime_val;
+    // 1. Try runtime environment (picked up by dotenv at startup or system env)
+    if let Ok(val) = std::env::var(name) {
+        if !val.is_empty() {
+            return val;
+        }
     }
 
-    // 2. Try baked-in variables from .env during compile time
-    // This uses the dotenv_codegen crate to pull variables from .env info the binary
+    // 2. Try baked-in variables from build environment or fallback to localhost
     match name {
         "NEXT_PUBLIC_API_URL" | "API_URL" => {
-            // We use the macro directly. Note: This will look for .env in the workspace root.
-            // If the variable is missing from .env during build, this line would cause a compile error.
-            // This is exactly what we want for a production build to ensure the URL is set.
-            dotenv!("NEXT_PUBLIC_API_URL").to_string()
+            option_env!("NEXT_PUBLIC_API_URL")
+                .or(option_env!("API_URL"))
+                .unwrap_or("http://localhost:8000")
+                .to_string()
         },
         _ => "".to_string()
     }

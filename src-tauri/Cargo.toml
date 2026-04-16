@@ -15,6 +15,7 @@ name = "app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
+dotenv = "0.15.0"
 tauri-build = { version = "2.5.4", features = [] }
 
 [dependencies]
@@ -32,4 +33,3 @@ hound = "3.5"
 anyhow = "1.0"
 tauri-plugin-dialog = "2.2.3"
 dotenv = "0.15.0"
-dotenv_codegen = "0.15.0"
