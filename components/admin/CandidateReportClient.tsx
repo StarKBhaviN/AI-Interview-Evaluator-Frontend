@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react'
 import PlaybackClient from './PlaybackClient'
 import { Progress } from '../ui/progress'
-import { BACKEND_URL } from '@/lib/api'
+import { getBaseUrl } from '@/lib/api'
 import { FileText, MessageSquare, Brain, Flag, BarChart3, ArrowLeft } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar } from 'recharts'
 
@@ -34,7 +34,8 @@ export default function CandidateReportClient({ sessionId }: { sessionId?: strin
     if (!sessionId) return
     const fetchData = async () => {
       try {
-        const res = await fetch(`${BACKEND_URL}/api/admin/sessions/${sessionId}`)
+        const baseUrl = await getBaseUrl()
+        const res = await fetch(`${baseUrl}/api/admin/sessions/${sessionId}`)
         if (res.ok) {
            const json = await res.json()
            setData(json)

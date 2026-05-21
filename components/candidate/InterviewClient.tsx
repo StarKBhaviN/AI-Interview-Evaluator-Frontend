@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Progress } from '../ui/progress'
 import { Mic, Square, SkipForward, TrendingUp, AlertTriangle, X, Loader2 } from 'lucide-react'
 
@@ -15,7 +15,6 @@ const difficultyColors: Record<string, string> = {
   Medium: 'bg-amber-500/15 text-amber-400 border-amber-500/20',
   Hard: 'bg-red-500/15 text-red-400 border-red-500/20',
 }
-import { BACKEND_URL } from '@/lib/api'
 
 import { invoke } from '@tauri-apps/api/core'
 
@@ -40,7 +39,6 @@ export default function InterviewClient() {
   const robotMood = React.useMemo(() => {
     if (showWarning) return 'warning'
     if (isRecording) {
-      // Use a more stable dependency for max volume to avoid re-calculating on every waveform frame
       const maxVol = Math.max(...waveform, 0)
       if (confidence > 85) return 'smiling'
       if (maxVol < 10) return 'thinking'
@@ -86,22 +84,34 @@ export default function InterviewClient() {
     }
   }
 
-  const videoRef = React.useRef<HTMLVideoElement>(null)
-  const canvasRef = React.useRef<HTMLCanvasElement>(null)
-  const streamRef = React.useRef<MediaStream | null>(null)
-  const tabSwitchedRef = React.useRef(false)
-  const micMutedRef = React.useRef(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const tabSwitchedRef = useRef(false)
+  const micMutedRef = useRef(false)
+  // BUG-3 FIX: Use refs for values accessed inside intervals to avoid stale closures
+  const warningLogsRef = useRef(warningLogs)
+  const timeLeftRef = useRef(timeLeft)
+  
+  // Keep refs in sync with state
+  useEffect(() => { warningLogsRef.current = warningLogs }, [warningLogs])
+  useEffect(() => { timeLeftRef.current = timeLeft }, [timeLeft])
+
+  // BUG-5 FIX: Helper to get backend URL asynchronously 
+  const getBackendUrl = useCallback(async () => {
+    const { getBaseUrl } = await import('@/lib/api')
+    return await getBaseUrl()
+  }, [])
 
   useEffect(() => {
     if (questions.length === 0 || step !== 'interview') return
     
     // Tab Switching Detection
-    // Tab/Window Focusing Detection
     const handleInactivity = () => {
       tabSwitchedRef.current = true
       setWarningMsg('Interaction with other windows/tabs detected')
       setShowWarning(true)
-      setWarningLogs(prev => [...prev, { time: formatTime(180 - timeLeft), flags: ["Tab switching detected"] }])
+      setWarningLogs(prev => [...prev, { time: formatTime(180 - timeLeftRef.current), flags: ["Tab switching detected"] }])
     }
 
     window.addEventListener('blur', handleInactivity)
@@ -118,12 +128,15 @@ export default function InterviewClient() {
       })
     }, 1000)
 
-    // Real Proctoring Check (Webcam)
+    // BUG-4 FIX: Proctoring runs regardless of isRecording 
+    // (active for entire interview step, not just during recording)
     const proctoringInterval = setInterval(async () => {
-      if (!isRecording || !videoRef.current || !canvasRef.current) return
+      if (!videoRef.current || !canvasRef.current) return
 
       const canvas = canvasRef.current
       const video = videoRef.current
+      if (video.videoWidth === 0 || video.videoHeight === 0) return
+      
       canvas.width = video.videoWidth
       canvas.height = video.videoHeight
       const ctx = canvas.getContext('2d')
@@ -131,7 +144,7 @@ export default function InterviewClient() {
       
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
       
-        canvas.toBlob(async (blob) => {
+      canvas.toBlob(async (blob) => {
         if (!blob) return
         const formData = new FormData()
         formData.append('frame', blob, 'frame.jpg')
@@ -141,7 +154,9 @@ export default function InterviewClient() {
         formData.append('mic_muted', micMutedRef.current.toString())
 
         try {
-          const response = await fetch(`${BACKEND_URL}/check-cheating`, {
+          // BUG-5 FIX: Use async getBaseUrl() instead of imported BACKEND_URL
+          const baseUrl = await getBackendUrl()
+          const response = await fetch(`${baseUrl}/check-cheating`, {
             method: 'POST',
             body: formData,
           })
@@ -154,19 +169,20 @@ export default function InterviewClient() {
           }
 
           if (data.cheat_detected) {
-            // Filter out flags that we already logged from the frontend (like Tab Switching)
-            // if they are returning from the backend to avoid duplicates in the same timestamp
+            // BUG-3 FIX: Use ref for current warningLogs to avoid stale closure
+            const currentLogs = warningLogsRef.current
+            const currentTime = formatTime(180 - timeLeftRef.current)
+            
             const finalFlags = data.flags.filter((flag: string) => {
               if (flag === "Tab switching detected" || flag === "Microphone muted") {
-                 // If we already have a log with this exact time and flag, skip it
-                 const isDup = warningLogs.some(l => l.time === formatTime(180 - timeLeft) && l.flags.includes(flag))
-                 return !isDup
+                const isDup = currentLogs.some(l => l.time === currentTime && l.flags.includes(flag))
+                return !isDup
               }
               return true
             })
 
             if (finalFlags.length > 0) {
-              setWarningLogs(prev => [...prev, { time: formatTime(180 - timeLeft), flags: finalFlags }])
+              setWarningLogs(prev => [...prev, { time: currentTime, flags: finalFlags }])
               setWarningMsg(finalFlags.join(', '))
               setShowWarning(true)
             }
@@ -183,7 +199,7 @@ export default function InterviewClient() {
       window.removeEventListener('blur', handleInactivity)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
-  }, [currentQ, showWarning, questions, isRecording])
+  }, [currentQ, questions, step, getBackendUrl]) // BUG-3/4 FIX: removed showWarning & isRecording from deps
 
   const [permissions, setPermissions] = useState<{
     audio: 'pending' | 'granted' | 'denied',
@@ -195,10 +211,8 @@ export default function InterviewClient() {
     setPermissions({ audio: 'pending', video: 'pending' })
     if (videoRef.current) videoRef.current.srcObject = null
     
-    // Slight delay for visual feedback in case of instant rejection
     await new Promise(resolve => setTimeout(resolve, 500))
 
-    // 1. Check Video first
     let vStatus: 'granted' | 'denied' = 'denied'
     try {
       const vStream = await navigator.mediaDevices.getUserMedia({ video: true })
@@ -210,15 +224,9 @@ export default function InterviewClient() {
       vStatus = 'denied'
     }
 
-    // 2. Check Audio
     let aStatus: 'granted' | 'denied' = 'denied'
     try {
-      // NOTE: We don't want to double-prompt if possible, but browsers usually 
-      // handle these separately if denied once.
       const aStream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      // We don't need to keep this stream here as the visualizer effect 
-      // will handle its own stream lifecycle when isRecording is true.
-      // However, we need to know it IS possible.
       aStream.getTracks().forEach(t => t.stop())
       aStatus = 'granted'
     } catch (err) {
@@ -258,10 +266,9 @@ export default function InterviewClient() {
         if (audioTrack) {
           audioTrack.onmute = () => { micMutedRef.current = true }
           audioTrack.onunmute = () => { micMutedRef.current = false }
-          // Check initial state
           micMutedRef.current = !audioTrack.enabled || audioTrack.muted
           if (micMutedRef.current) {
-            setWarningLogs(prev => [...prev, { time: formatTime(180 - timeLeft), flags: ["Microphone muted"] }])
+            setWarningLogs(prev => [...prev, { time: formatTime(180 - timeLeftRef.current), flags: ["Microphone muted"] }])
           }
         }
 
@@ -278,7 +285,6 @@ export default function InterviewClient() {
           if (!analyser || !dataArray) return
           analyser.getByteFrequencyData(dataArray as any)
           
-          // Map frequency data to our 30-bar waveform
           const normalized = Array.from(dataArray).slice(0, 30).map(val => (val / 255) * 100)
           setWaveform(normalized)
           
@@ -298,19 +304,15 @@ export default function InterviewClient() {
           let target = 75
           
           if (maxVol < 5) {
-            // Very quiet - user is likely not speaking
             target = 30 + Math.random() * 10
           } else if (maxVol < 15) {
-            // Low volume
             target = 55 + Math.random() * 15
           } else {
-            // Good volume
             target = 75 + Math.random() * 15
           }
 
-          // Smooth transition towards target
           const diff = target - prev
-          const next = prev + (diff * 0.2) // 20% movement towards target per tick
+          const next = prev + (diff * 0.2)
           
           return Math.min(98, Math.max(15, next))
         })
@@ -377,6 +379,20 @@ export default function InterviewClient() {
     }
   }
 
+  // FIX: Re-record properly restarts audio capture
+  const handleReRecord = async () => {
+    setShowSubmit(false)
+    setConfidence(0)
+    // Clear previous recording for this question
+    setAudioPaths(prev => {
+      const updated = { ...prev }
+      delete updated[currentQ]
+      return updated
+    })
+    // Auto-start recording again
+    await handleStartRecording()
+  }
+
   const handleNext = () => {
     setShowSubmit(false)
     if (!isLastQuestion) { 
@@ -432,7 +448,6 @@ export default function InterviewClient() {
               Enable your <span className="text-white/80">essential peripherals</span> to proceed <br/> with the AI proctoring stage.
             </p>
             
-            {/* Simple Indicator of what's missing */}
             <div className="space-y-4 mb-8">
                <div className={`p-4 rounded-2xl border flex items-center justify-between ${permissions.video === 'granted' ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-white/[0.03] border-white/[0.05]'}`}>
                   <div className="flex items-center gap-3">
@@ -734,7 +749,7 @@ export default function InterviewClient() {
             </button>
         </div>
 
-        {/* Final Submit Button - Only shows up when we reach the end or have answered everything */}
+        {/* Final Submit Button */}
         <div className={`flex flex-col items-center justify-center -mt-4 animate-fade-in transition-all duration-500 ${isLastQuestion ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none h-0'}`}>
            <p className="text-white/30 text-[10px] font-bold uppercase tracking-[0.3em] mb-4">Final session reached</p>
            <button
@@ -764,7 +779,7 @@ export default function InterviewClient() {
             </div>
             <div className="flex gap-3">
               <button
-                onClick={() => { setShowSubmit(false); setConfidence(0) }}
+                onClick={handleReRecord}
                 className="flex-1 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/60 hover:text-white hover:bg-white/[0.08] font-medium text-sm transition-all"
               >
                 Re-record

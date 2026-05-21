@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react'
 import { Play, Pause, SkipBack, SkipForward, Volume2, Download, ArrowLeft } from 'lucide-react'
 import { Progress } from '../ui/progress'
-import { BACKEND_URL } from '@/lib/api'
+import { getBaseUrl } from '@/lib/api'
 
 export default function PlaybackClient({ sessionId, details }: { sessionId: string, details: any[] }) {
   const [activeSegment, setActiveSegment] = useState(0)
@@ -10,10 +10,11 @@ export default function PlaybackClient({ sessionId, details }: { sessionId: stri
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
-  const handleSegmentClick = (index: number) => {
+  const handleSegmentClick = async (index: number) => {
     setActiveSegment(index)
     // Construct real backend audio URL
-    const url = `${BACKEND_URL}/api/admin/audio/${sessionId}/${details[index].questionIndex}`
+    const baseUrl = await getBaseUrl()
+    const url = `${baseUrl}/api/admin/audio/${sessionId}/${details[index].questionIndex}`
     setAudioUrl(url)
     setIsPlaying(true)
   }

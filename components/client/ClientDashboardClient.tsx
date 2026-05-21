@@ -26,10 +26,10 @@ import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/store/app.store'
 import { 
   getClientMeetings, 
-  createClientMeeting, 
+  createMeeting, 
   getClientStats, 
   getClientCandidates,
-  deleteClientMeeting,
+  deleteMeeting,
   updateMeetingStatus
 } from '@/lib/api'
 
@@ -157,7 +157,7 @@ export default function ClientDashboardClient() {
     
     setIsCreating(true)
     try {
-      await createClientMeeting(newMeeting)
+      await createMeeting(newMeeting)
       setShowCreate(false)
       setShowQuestionsStep(false)
       setNewTitle('')
@@ -182,7 +182,7 @@ export default function ClientDashboardClient() {
     if (window.confirm('Are you sure you want to delete this interview posting?')) {
       setLoadingIds(prev => new Set(prev).add(id))
       try {
-        await deleteClientMeeting(id)
+        await deleteMeeting(id)
         fetchData()
       } catch (err) {
         console.error('Failed to delete meeting', err)

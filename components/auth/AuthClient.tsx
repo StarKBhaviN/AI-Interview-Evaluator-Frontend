@@ -6,7 +6,7 @@ import { Label } from '../ui/label'
 import { Upload, User, Mail, Briefcase, FileText, Brain, ChevronDown, ShieldCheck } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/store/app.store'
-import { BACKEND_URL } from '@/lib/api'
+import { getBaseUrl } from '@/lib/api'
 
 export default function AuthClient() {
   const router = useRouter()
@@ -41,7 +41,8 @@ export default function AuthClient() {
     setError('')
     
     try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/signin`, {
+      const baseUrl = await getBaseUrl()
+      const response = await fetch(`${baseUrl}/api/auth/signin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: formData.email, password: formData.password })
@@ -77,7 +78,8 @@ export default function AuthClient() {
     setError('')
     
     try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/signup`, {
+      const baseUrl = await getBaseUrl()
+      const response = await fetch(`${baseUrl}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

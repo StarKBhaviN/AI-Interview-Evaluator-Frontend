@@ -24,7 +24,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/store/app.store'
 import AIModelCenter from './AIModelCenter'
-import { BACKEND_URL } from '@/lib/api'
+import { getBaseUrl } from '@/lib/api'
 
 export default function AdminDashboardClient() {
   const router = useRouter()
@@ -50,11 +50,14 @@ export default function AdminDashboardClient() {
   const fetchData = async () => {
     try {
       setLoading(true)
+      const { getBaseUrl } = await import('@/lib/api')
+      const baseUrl = await getBaseUrl()
+      
       const [statsRes, sessRes, clientRes, candRes] = await Promise.all([
-        fetch(`${BACKEND_URL}/api/admin/stats`),
-        fetch(`${BACKEND_URL}/api/admin/sessions`),
-        fetch(`${BACKEND_URL}/api/admin/clients`),
-        fetch(`${BACKEND_URL}/api/admin/candidates`)
+        fetch(`${baseUrl}/api/admin/stats`),
+        fetch(`${baseUrl}/api/admin/sessions`),
+        fetch(`${baseUrl}/api/admin/clients`),
+        fetch(`${baseUrl}/api/admin/candidates`)
       ])
       
       const statsData = await statsRes.json()
@@ -70,7 +73,8 @@ export default function AdminDashboardClient() {
         { label: 'Growth', value: `${statsData.growth >= 0 ? '+' : ''}${statsData.growth}%`, icon: TrendingUp, color: statsData.growth >= 0 ? 'text-emerald-400' : 'text-rose-400', bg: statsData.growth >= 0 ? 'bg-emerald-500/10' : 'bg-rose-500/10' },
       ])
 
-      setSessions(sessData)
+      // Handle paginated sessions response
+      setSessions(Array.isArray(sessData) ? sessData : sessData.sessions || [])
       setClients(clientData)
       setCandidates(candData)
     } catch (err) {
@@ -85,7 +89,8 @@ export default function AdminDashboardClient() {
 
     try {
       setTerminatingId(userId)
-      const res = await fetch(`${BACKEND_URL}/api/admin/users/${userId}`, {
+      const baseUrl = await getBaseUrl()
+      const res = await fetch(`${baseUrl}/api/admin/users/${userId}`, {
         method: 'DELETE'
       })
       if (res.ok) {
@@ -111,7 +116,8 @@ export default function AdminDashboardClient() {
   const handleExport = async () => {
     try {
       setIsExporting(true)
-      const response = await fetch(`${BACKEND_URL}/api/admin/export`)
+      const baseUrl = await getBaseUrl()
+      const response = await fetch(`${baseUrl}/api/admin/export`)
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')

@@ -130,7 +130,7 @@ export default function FeedbackClient() {
                       {res.transcript || "No transcript available for this response."}
                     </p>
                   </div>
-                  {res.keywords_found.length > 0 && (
+                  {res.keywords_found?.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {res.keywords_found.map(kw => (
                         <span key={kw} className="text-[10px] px-2 py-0.5 rounded bg-white/[0.05] text-white/40 border border-white/[0.05]">

@@ -1,96 +1,44 @@
-import { getEnv } from './env';
-export let BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+"use client"
+/**
+ * API Client — Centralized API layer for the AI Interview platform.
+ * All backend communication routes through here.
+ * 
+ * BUG-5 FIX: Uses getBaseUrl() consistently instead of the synchronous BACKEND_URL export.
+ */
 
-async function initBackendUrl() {
-  const url = await getEnv("API_URL");
-  const nextUrl = await getEnv("NEXT_PUBLIC_API_URL");
-  if (url || nextUrl) {
-    BACKEND_URL = url || nextUrl || BACKEND_URL;
-    console.log(`[API] Backend URL updated to: ${BACKEND_URL}`);
+// --- Dynamic Base URL ---
+let _cachedUrl: string | null = null;
+
+export async function getBaseUrl(): Promise<string> {
+  if (_cachedUrl) return _cachedUrl;
+  
+  try {
+    // @ts-ignore — Tauri-specific dynamic import
+    const { getEnv } = await import("@/lib/env");
+    const env = await getEnv();
+    _cachedUrl = env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  } catch {
+    _cachedUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   }
+  
+  return _cachedUrl;
 }
 
-// Start initialization immediately
-if (typeof window !== 'undefined') {
-  initBackendUrl().catch(console.error);
-}
+// Legacy synchronous export (used by components that import directly)
+// DEPRECATED: Use getBaseUrl() instead for correctness
+export const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-// Keep a function version for internal use to ensure we have the latest and can await if needed
-async function getBaseUrl() {
-  if (BACKEND_URL !== 'http://localhost:8000' && BACKEND_URL !== process.env.NEXT_PUBLIC_API_URL) {
-    return BACKEND_URL;
-  }
-  const url = await getEnv("API_URL");
-  const nextUrl = await getEnv("NEXT_PUBLIC_API_URL");
-  return url || nextUrl || BACKEND_URL;
-}
 
+// --- Type Definitions ---
 export interface AnalysisResponse {
   transcript: string;
   relevance_score: number;
   confidence_score: number;
   sentiment: string;
   keywords_found: string[];
+  is_technical: boolean;
+  final_score: number;
   questionIndex?: number;
-  questionText?: string;
-  audioPath?: string;
-}
-
-export async function analyzeAudio(filePath: string, question?: string, skills?: string[]): Promise<AnalysisResponse> {
-  console.log(`[analyzeAudio] Starting analysis for file: ${filePath}`);
-  
-  // We use Tauri's File API to read the file and send it
-  const { readFile } = await import('@tauri-apps/plugin-fs');
-  let audioData: Uint8Array;
-  try {
-    audioData = await readFile(filePath);
-    console.log(`[analyzeAudio] File read successfully. Size: ${audioData.length} bytes`);
-  } catch (err) {
-    console.error(`[analyzeAudio] Failed to read file: ${filePath}`, err);
-    throw new Error(`Failed to read audio file: ${err}`);
-  }
-
-  const blob = new Blob([audioData as any], { type: 'audio/wav' });
-
-  
-  const formData = new FormData();
-  formData.append('file', blob, 'recording.wav');
-  if (question) formData.append('question', question);
-  if (skills) formData.append('skills', skills.join(','));
-
-  const baseUrl = await getBaseUrl();
-  console.log(`[analyzeAudio] Sending request to backend at ${baseUrl}...`);
-  const response = await fetch(`${baseUrl}/analyze-audio`, {
-    method: 'POST',
-    body: formData,
-  });
-
-  console.log(`[analyzeAudio] Backend response status: ${response.status} ${response.statusText}`);
-
-
-
-  if (!response.ok) {
-    throw new Error(`Failed to analyze audio: ${response.statusText}`);
-  }
-
-  return response.json();
-}
-
-export async function parseResume(file: File): Promise<{ skills: string[] }> {
-  const formData = new FormData();
-  formData.append('file', file);
-
-  const baseUrl = await getBaseUrl();
-  const response = await fetch(`${baseUrl}/api/parse-resume`, {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to parse resume: ${response.statusText}`);
-  }
-
-  return response.json();
 }
 
 export interface InterviewReport {
@@ -100,143 +48,257 @@ export interface InterviewReport {
   confidenceScore: number;
   strengths: string[];
   improvements: string[];
-  summary: string;
 }
 
-export async function generateReport(results: AnalysisResponse[], warnings: any[]): Promise<InterviewReport> {
-  const baseUrl = await getBaseUrl();
-  const response = await fetch(`${baseUrl}/generate-report`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ results, warnings }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to generate report: ${response.statusText}`);
+// --- Helper ---
+async function apiFetch(path: string, options?: RequestInit): Promise<Response> {
+  const base = await getBaseUrl();
+  const url = `${base}${path}`;
+  const res = await fetch(url, options);
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(detail.detail || `API Error: ${res.status}`);
   }
-
-  return response.json();
+  return res;
 }
 
-export interface Question {
-  id: string;
-  text: string;
-  category: string;
-  difficulty: string;
-  tags: string[];
-  keywords: string[];
-}
+// =====================
+//  Auth Endpoints
+// =====================
 
-export async function generateInterviewQuestions(skills: string[], position: string): Promise<Question[]> {
-  const baseUrl = await getBaseUrl();
-  const response = await fetch(`${baseUrl}/api/generate-questions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ skills, position }),
+export async function signUp(data: { name: string; email: string; password: string; role: string; company?: string }) {
+  const res = await apiFetch("/api/auth/signup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
   });
-
-  if (!response.ok) {
-    throw new Error(`Failed to generate questions: ${response.statusText}`);
-  }
-
-  return response.json();
+  return res.json();
 }
 
-export async function submitSession(sessionData: any): Promise<{ status: string; session_id: string }> {
-  const baseUrl = await getBaseUrl();
-  const response = await fetch(`${baseUrl}/api/admin/sessions/submit`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(sessionData),
+export async function signIn(data: { email: string; password: string }) {
+  const res = await apiFetch("/api/auth/signin", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
   });
-
-  if (!response.ok) {
-    throw new Error(`Failed to submit session: ${response.statusText}`);
-  }
-
-  return response.json();
+  return res.json();
 }
 
-export async function uploadAudio(filePath: string, sessionId: string, questionIndex: number): Promise<{ status: string }> {
-  const { readFile } = await import('@tauri-apps/plugin-fs');
-  const audioData = await readFile(filePath);
-  const blob = new Blob([audioData as any], { type: 'audio/wav' });
+export async function resetPassword(data: { email: string; current_password: string; new_password: string }) {
+  const res = await apiFetch("/api/auth/reset-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+// =====================
+//  Interview Endpoints
+// =====================
+
+export async function analyzeAudio(audioPath: string, question?: string, skills?: string[]): Promise<AnalysisResponse> {
+  const base = await getBaseUrl();
+
+  // Read the audio file from Tauri's local filesystem
+  const { readFile } = await import("@tauri-apps/plugin-fs");
+  const fileBytes = await readFile(audioPath);
+  const blob = new Blob([fileBytes], { type: "audio/wav" });
 
   const formData = new FormData();
-  formData.append('file', blob, `recording_${questionIndex}.wav`);
-  formData.append('session_id', sessionId);
-  formData.append('question_index', questionIndex.toString());
+  formData.append("file", blob, "recording.wav");
+  if (question) formData.append("question", question);
+  if (skills && skills.length > 0) formData.append("skills", skills.join(","));
 
-  const baseUrl = await getBaseUrl();
-  const response = await fetch(`${baseUrl}/api/admin/audio/upload`, {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to upload audio: ${response.statusText}`);
+  const res = await fetch(`${base}/analyze-audio`, { method: "POST", body: formData });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(detail.detail || `Analysis failed: ${res.status}`);
   }
-
-  return response.json();
+  return res.json();
 }
+
+export async function generateQuestions(skills: string[], position: string) {
+  const res = await apiFetch("/api/generate-questions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ skills, position }),
+  });
+  return res.json();
+}
+
+export async function generateReport(results: any[], warnings: any[]) {
+  const res = await apiFetch("/generate-report", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ results, warnings }),
+  });
+  return res.json();
+}
+
+// =====================
+//  Client (Employer) Endpoints
+// =====================
+
 export async function getClientMeetings(clientId?: string): Promise<any[]> {
-  const baseUrl = await getBaseUrl();
-  const url = clientId ? `${baseUrl}/api/client/meetings?client_id=${clientId}` : `${baseUrl}/api/client/meetings`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error('Failed to fetch meetings');
-  return response.json();
+  const query = clientId ? `?client_id=${clientId}` : "";
+  const res = await apiFetch(`/api/client/meetings${query}`);
+  return res.json();
 }
 
-export async function createClientMeeting(meetingData: any): Promise<any> {
-  const baseUrl = await getBaseUrl();
-  const response = await fetch(`${baseUrl}/api/client/meetings`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(meetingData),
+export async function createMeeting(meeting: any) {
+  const res = await apiFetch("/api/client/meetings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(meeting),
   });
-  if (!response.ok) throw new Error('Failed to create meeting');
-  return response.json();
+  return res.json();
 }
 
-export async function getClientStats(clientId?: string): Promise<any> {
-  const baseUrl = await getBaseUrl();
-  const url = clientId ? `${baseUrl}/api/client/stats?client_id=${clientId}` : `${baseUrl}/api/client/stats`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error('Failed to fetch stats');
-  return response.json();
-}
-
-export async function getClientCandidates(clientId?: string): Promise<any[]> {
-  const baseUrl = await getBaseUrl();
-  const url = clientId ? `${baseUrl}/api/client/candidates?client_id=${clientId}` : `${baseUrl}/api/client/candidates`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error('Failed to fetch candidates');
-  return response.json();
-}
-
-export async function deleteClientMeeting(meetingId: string): Promise<any> {
-  const baseUrl = await getBaseUrl();
-  const response = await fetch(`${baseUrl}/api/client/meetings/${meetingId}`, {
-    method: 'DELETE',
+export async function updateMeeting(meetingId: string, update: any) {
+  const res = await apiFetch(`/api/client/meetings/${meetingId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(update),
   });
-  if (!response.ok) throw new Error('Failed to delete meeting');
-  return response.json();
+  return res.json();
 }
 
-export async function updateMeetingStatus(meetingId: string, status: string): Promise<any> {
-  const baseUrl = await getBaseUrl();
-  const response = await fetch(`${baseUrl}/api/client/meetings/${meetingId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+export async function updateMeetingStatus(meetingId: string, status: string) {
+  const res = await apiFetch(`/api/client/meetings/${meetingId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ status }),
   });
-  if (!response.ok) throw new Error('Failed to update meeting status');
-  return response.json();
+  return res.json();
 }
 
-export async function getMeetingQuestions(code: string): Promise<{ questions: Question[]; title: string; company: string }> {
-  const baseUrl = await getBaseUrl();
-  const response = await fetch(`${baseUrl}/api/client/meetings/by-code/${code}/questions`);
-  if (!response.ok) throw new Error('Failed to fetch meeting questions');
-  return response.json();
+export async function deleteMeeting(meetingId: string) {
+  const res = await apiFetch(`/api/client/meetings/${meetingId}`, { method: "DELETE" });
+  return res.json();
+}
+
+export async function getMeetingQuestions(code: string) {
+  const res = await apiFetch(`/api/client/meetings/by-code/${code}/questions`);
+  return res.json();
+}
+
+export async function getClientStats(clientId?: string) {
+  const query = clientId ? `?client_id=${clientId}` : "";
+  const res = await apiFetch(`/api/client/stats${query}`);
+  return res.json();
+}
+
+export async function getClientCandidates(clientId?: string) {
+  const query = clientId ? `?client_id=${clientId}` : "";
+  const res = await apiFetch(`/api/client/candidates${query}`);
+  return res.json();
+}
+
+export async function shortlistCandidate(sessionId: string, shortlisted: boolean) {
+  const res = await apiFetch(`/api/client/candidates/${sessionId}/shortlist`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ shortlisted }),
+  });
+  return res.json();
+}
+
+// =====================
+//  Admin Endpoints
+// =====================
+
+export async function getAdminStats() {
+  const res = await apiFetch("/api/admin/stats");
+  return res.json();
+}
+
+export async function getAdminSessions(page = 1, limit = 50, search = "") {
+  const res = await apiFetch(`/api/admin/sessions?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
+  return res.json();
+}
+
+export async function getAdminSession(sessionId: string) {
+  const res = await apiFetch(`/api/admin/sessions/${sessionId}`);
+  return res.json();
+}
+
+export async function deleteSession(sessionId: string) {
+  const res = await apiFetch(`/api/admin/sessions/${sessionId}`, { method: "DELETE" });
+  return res.json();
+}
+
+export async function getAdminClients() {
+  const res = await apiFetch("/api/admin/clients");
+  return res.json();
+}
+
+export async function getAdminCandidates() {
+  const res = await apiFetch("/api/admin/candidates");
+  return res.json();
+}
+
+export async function terminateUser(userId: string) {
+  const res = await apiFetch(`/api/admin/users/${userId}`, { method: "DELETE" });
+  return res.json();
+}
+
+export async function getAdminAnalytics() {
+  const res = await apiFetch("/api/admin/analytics");
+  return res.json();
+}
+
+export async function exportAdminCSV() {
+  const base = await getBaseUrl();
+  const res = await fetch(`${base}/api/admin/export`);
+  return res.blob();
+}
+
+export async function submitSession(session: any) {
+  const res = await apiFetch("/api/admin/sessions/submit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(session),
+  });
+  return res.json();
+}
+
+export async function uploadAudio(audioPath: string, sessionId: string, questionIndex: number) {
+  // Read the audio file from Tauri's local filesystem
+  const { readFile } = await import("@tauri-apps/plugin-fs");
+  const fileBytes = await readFile(audioPath);
+  const blob = new Blob([fileBytes], { type: "audio/wav" });
+
+  const formData = new FormData();
+  formData.append("file", blob, `${sessionId}_${questionIndex}.wav`);
+  formData.append("session_id", sessionId);
+  formData.append("question_index", questionIndex.toString());
+  
+  const base = await getBaseUrl();
+  const res = await fetch(`${base}/api/admin/audio/upload`, { method: "POST", body: formData });
+  return res.json();
+}
+
+// =====================
+//  AI / ML Endpoints
+// =====================
+
+export async function getAIStatus() {
+  const res = await apiFetch("/api/ai/status");
+  return res.json();
+}
+
+export async function trainRelevanceModel() {
+  const res = await apiFetch("/api/ai/train-relevance", { method: "POST" });
+  return res.json();
+}
+
+// =====================
+//  Resume Endpoint
+// =====================
+
+export async function parseResume(formData: FormData) {
+  const base = await getBaseUrl();
+  const res = await fetch(`${base}/api/parse-resume`, { method: "POST", body: formData });
+  return res.json();
 }
